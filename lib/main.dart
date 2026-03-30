@@ -15,16 +15,16 @@ void main() {
     systemNavigationBarColor: Colors.transparent,
   ));
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  runApp(const ProviderScope(child: KineticLedgerApp()));
+  runApp(const ProviderScope(child: ZenithApp()));
 }
 
-class KineticLedgerApp extends StatelessWidget {
-  const KineticLedgerApp({super.key});
+class ZenithApp extends StatelessWidget {
+  const ZenithApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Kinetic Ledger',
+      title: 'Zenith',
       theme: AppTheme.darkTheme,
       home: const MainScaffold(),
       debugShowCheckedModeBanner: false,
