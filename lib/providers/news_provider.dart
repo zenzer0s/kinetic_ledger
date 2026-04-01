@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../services/news_service.dart';
 import '../services/cerebras_service.dart';
+import '../services/notification_service.dart';
 import '../services/sentiment.dart';
 
 
@@ -41,10 +42,19 @@ final newsProvider =
   });
 });
 
-// ── Calendar ────────────────────────────────────────────────────────────────────────────
+// ── Calendar ──────────────────────────────────────────────────────────────────
 // Normal loads use the persistent cache. Pull-to-refresh clears cache then
 // invalidates this provider, forcing a fresh network fetch.
 final calendarProvider =
     FutureProvider.autoDispose<List<EconomicEvent>>((ref) async {
-  return ref.read(newsServiceProvider).fetchCalendar();
+  final events = await ref.read(newsServiceProvider).fetchCalendar();
+
+  // Schedule Tier-1 notifications from fresh data (fire-and-forget)
+  if (events.isNotEmpty) {
+    final ns = NotificationService();
+    ns.scheduleCalendarAlerts(events);
+    ns.scheduleDailyDigest(events);
+  }
+
+  return events;
 });

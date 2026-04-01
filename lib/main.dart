@@ -9,10 +9,16 @@ import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/percentage_screen.dart';
 import 'screens/news_screen.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await HomeWidget.setAppGroupId('group.com.example.kinetic_ledger');
+
+  // Init notification channels & request permission
+  await NotificationService().init();
+  await NotificationService().requestPermission();
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,

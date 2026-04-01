@@ -89,7 +89,7 @@ class _NewsScreenState extends ConsumerState<NewsScreen>
                       ],
                     ),
                     const Spacer(),
-                    // Refresh button
+                    // Refresh button — 3s debounce prevents stacked rebuilds
                     _PulsingRefreshButton(
                       onTap: () {
                         HapticFeedback.mediumImpact();
@@ -920,6 +920,7 @@ class _PulsingRefreshButtonState extends State<_PulsingRefreshButton>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _rot;
+  bool _onCooldown = false;
 
   @override
   void initState() {
@@ -941,8 +942,14 @@ class _PulsingRefreshButtonState extends State<_PulsingRefreshButton>
   }
 
   void _tap() {
+    if (_onCooldown) return; // ignore rapid taps
+    setState(() => _onCooldown = true);
     _ctrl.forward(from: 0);
     widget.onTap();
+    // Re-enable after 3 seconds
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _onCooldown = false);
+    });
   }
 
   @override
@@ -950,19 +957,23 @@ class _PulsingRefreshButtonState extends State<_PulsingRefreshButton>
     final zc = widget.zc;
     return GestureDetector(
       onTap: _tap,
-      child: AnimatedBuilder(
-        animation: _rot,
-        builder: (_, child) =>
-            Transform.rotate(angle: _rot.value * 2 * math.pi, child: child),
-        child: Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: zc.surfaceAlt,
-            shape: BoxShape.circle,
-            border: Border.all(color: zc.border),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: _onCooldown ? 0.4 : 1.0,
+        child: AnimatedBuilder(
+          animation: _rot,
+          builder: (_, child) =>
+              Transform.rotate(angle: _rot.value * 2 * math.pi, child: child),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: zc.surfaceAlt,
+              shape: BoxShape.circle,
+              border: Border.all(color: zc.border),
+            ),
+            child: Icon(Icons.refresh_rounded, color: zc.textMuted, size: 18),
           ),
-          child: Icon(Icons.refresh_rounded, color: zc.textMuted, size: 18),
         ),
       ),
     );
