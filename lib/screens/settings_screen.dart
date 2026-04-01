@@ -24,14 +24,16 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: zc.textPrimary,
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: Navigator.canPop(context)
+            ? IconButton(
+                icon: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  color: zc.textPrimary,
+                  size: 20,
+                ),
+                onPressed: () => Navigator.pop(context),
+              )
+            : null,
         title: Text(
           'SETTINGS',
           style: GoogleFonts.chakraPetch(
@@ -228,6 +230,56 @@ class SettingsScreen extends ConsumerWidget {
                         _buildSnackBar(zc, 'Calendar Cache Cleared'),
                       );
                     }
+                  },
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // ── ENGINE STATISTICS ────────────────────────────────────────────
+            _SettingsGroup(
+              title: 'ENGINE STATISTICS',
+              zc: zc,
+              children: [
+                FutureBuilder<Map<String, int>>(
+                  future: CerebrasSentimentService.getStats(),
+                  builder: (context, snapshot) {
+                    final stats = snapshot.data ?? {'calls': 0, 'hits': 0, 'tokens': 0};
+                    return Column(
+                      children: [
+                        _LlmUsageTile(stats: stats, zc: zc),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: InkWell(
+                            onTap: () async {
+                              HapticFeedback.heavyImpact();
+                              await CerebrasSentimentService.resetStats();
+                              // Simple way to refresh this FutureBuilder's parent
+                              if (context is Element) {
+                                context.markNeedsBuild();
+                              }
+                            },
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.refresh_rounded, size: 14, color: zc.textMuted),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'RESET TELEMETRY',
+                                  style: GoogleFonts.chakraPetch(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.0,
+                                    color: zc.textMuted,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
                   },
                 ),
               ],
@@ -730,6 +782,113 @@ class _PickerTile extends StatelessWidget {
       trailing: selected
           ? Icon(Icons.check_circle_rounded, color: zc.accent, size: 20)
           : null,
+    );
+  }
+}
+
+class _LlmUsageTile extends StatelessWidget {
+  final Map<String, int> stats;
+  final ZenithColors zc;
+
+  const _LlmUsageTile({required this.stats, required this.zc});
+
+  @override
+  Widget build(BuildContext context) {
+    final calls = stats['calls'] ?? 0;
+    final hits = stats['hits'] ?? 0;
+    final tokens = stats['tokens'] ?? 0;
+    final totalRequests = calls + hits;
+    final efficiency = totalRequests > 0 ? (hits / totalRequests * 100).toStringAsFixed(1) : '0';
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              _StatItem(label: 'API CALLS', value: '$calls', icon: Icons.cloud_queue_rounded, zc: zc),
+              _StatDivider(zc: zc),
+              _StatItem(label: 'TOKENS', value: '${(tokens/1000).toStringAsFixed(1)}k', icon: Icons.bolt_rounded, zc: zc),
+              _StatDivider(zc: zc),
+              _StatItem(label: 'SAVINGS', value: '$efficiency%', icon: Icons.savings_outlined, zc: zc),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: totalRequests > 0 ? hits / (totalRequests) : 0,
+              backgroundColor: zc.border,
+              valueColor: AlwaysStoppedAnimation<Color>(zc.accent),
+              minHeight: 4,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'CACHE EFFICIENCY: $hits SAVED REQUESTS',
+            style: GoogleFonts.chakraPetch(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: zc.textDim,
+              letterSpacing: 1.0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final ZenithColors zc;
+
+  const _StatItem({required this.label, required this.value, required this.icon, required this.zc});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, size: 16, color: zc.accent),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.chakraPetch(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: zc.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: GoogleFonts.chakraPetch(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: zc.textMuted,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatDivider extends StatelessWidget {
+  final ZenithColors zc;
+  const _StatDivider({required this.zc});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 30,
+      width: 1,
+      color: zc.border,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
     );
   }
 }

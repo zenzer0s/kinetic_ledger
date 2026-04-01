@@ -63,11 +63,26 @@ class MainScaffold extends ConsumerStatefulWidget {
 }
 
 class _MainScaffoldState extends ConsumerState<MainScaffold> {
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   int _currentIndex = 0;
   final List<Widget> _screens = [
     const ConverterScreen(),
     const PercentageScreen(),
     const NewsScreen(),
+    const SettingsScreen(),
   ];
 
   @override
@@ -77,7 +92,14 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
     return Scaffold(
       extendBody: true,
       resizeToAvoidBottomInset: true,
-      body: _screens[_currentIndex],
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          setState(() => _currentIndex = index);
+        },
+        physics: const BouncingScrollPhysics(),
+        children: _screens,
+      ),
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
@@ -111,11 +133,9 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                       child: _buildNavItem(
                         2, Icons.newspaper_rounded, 'PULSE', zc),
                     ),
-
-                    // ── Settings ───────────────────────────────────────────
-                    Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: _SettingsButton(zc: zc),
+                    Expanded(
+                      child: _buildNavItem(
+                        3, Icons.settings_suggest_rounded, 'ENGINE', zc),
                     ),
                   ],
                 ),
@@ -131,30 +151,39 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
       int index, IconData icon, String label, ZenithColors zc) {
     final isSelected = _currentIndex == index;
     return GestureDetector(
-      onTap: () {
+        onTap: () {
         if (_currentIndex != index) {
-          HapticFeedback.heavyImpact();
-          setState(() => _currentIndex = index);
+          HapticFeedback.lightImpact();
+          _pageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOutQuart,
+          );
         }
       },
       behavior: HitTestBehavior.opaque,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isSelected
-                  ? zc.accentSoft.withValues(alpha: 0.18)
-                  : Colors.transparent,
-            ),
-            child: Icon(
-              icon,
-              color: isSelected ? zc.accentSoft : zc.textMuted,
-              size: 20,
+          AnimatedScale(
+            scale: isSelected ? 1.2 : 1.0,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.elasticOut,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected
+                    ? zc.accentSoft.withValues(alpha: 0.18)
+                    : Colors.transparent,
+              ),
+              child: Icon(
+                icon,
+                color: isSelected ? zc.accentSoft : zc.textMuted,
+                size: 20,
+              ),
             ),
           ),
           const SizedBox(height: 4),
@@ -174,30 +203,4 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 }
 
 // ── Settings Button ───────────────────────────────────────────────────────────
-class _SettingsButton extends StatelessWidget {
-  final ZenithColors zc;
-  const _SettingsButton({required this.zc});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SettingsScreen()),
-        );
-      },
-      child: Container(
-        width: 42,
-        height: 42,
-        decoration: BoxDecoration(
-          color: zc.surfaceAlt.withValues(alpha: 0.5),
-          shape: BoxShape.circle,
-          border: Border.all(color: zc.border),
-        ),
-        child: Icon(Icons.tune_rounded, color: zc.textPrimary, size: 18),
-      ),
-    );
-  }
-}
+// _SettingsButton removed as it's now a tab

@@ -16,6 +16,9 @@ class CerebrasSentimentService {
   static const _url = 'https://api.cerebras.ai/v1/chat/completions';
   static const _model = 'llama3.1-8b';
   static const _prefixKey = 'cerebras_cache_v1_';
+  static const _callsKey = 'cerebras_stats_api_calls';
+  static const _hitsKey = 'cerebras_stats_cache_hits';
+  static const _tokensKey = 'cerebras_stats_tokens_est';
 
   // ── In-memory cache (session) ──────────────────────────────────────────────
   static final Map<String, LlmSentiment> _memCache = {};
@@ -58,7 +61,10 @@ class CerebrasSentimentService {
   static Future<LlmSentiment?> _readCache(String headline) async {
     final k = _cacheKey(headline);
     // In-memory first
-    if (_memCache.containsKey(k)) return _memCache[k];
+    if (_memCache.containsKey(k)) {
+      _trackHit();
+      return _memCache[k];
+    }
     // Then SharedPreferences
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -70,11 +76,55 @@ class CerebrasSentimentService {
           final r = parts.sublist(1).join('|'); // reason may contain |
           final result = LlmSentiment(sentiment: s, reason: r);
           _memCache[k] = result; // promote to memory
+          _trackHit();
           return result;
         }
       }
     } catch (_) {}
     return null;
+  }
+
+  // ── Stats Tracking ────────────────────────────────────────────────────────
+  static Future<void> _trackHit() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final hits = prefs.getInt(_hitsKey) ?? 0;
+      await prefs.setInt(_hitsKey, hits + 1);
+    } catch (_) {}
+  }
+
+  static Future<void> _trackUsage(Map<String, dynamic>? usage) async {
+    if (usage == null) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final calls = prefs.getInt(_callsKey) ?? 0;
+      final tokens = prefs.getInt(_tokensKey) ?? 0;
+      final total = (usage['total_tokens'] as num?)?.toInt() ?? 0;
+      await prefs.setInt(_callsKey, calls + 1);
+      await prefs.setInt(_tokensKey, tokens + total);
+    } catch (_) {}
+  }
+
+  static Future<Map<String, int>> getStats() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return {
+        'calls': prefs.getInt(_callsKey) ?? 0,
+        'hits': prefs.getInt(_hitsKey) ?? 0,
+        'tokens': prefs.getInt(_tokensKey) ?? 0,
+      };
+    } catch (_) {
+      return {'calls': 0, 'hits': 0, 'tokens': 0};
+    }
+  }
+
+  static Future<void> resetStats() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_callsKey);
+      await prefs.remove(_hitsKey);
+      await prefs.remove(_tokensKey);
+    } catch (_) {}
   }
 
   // ── Write to both caches ────────────────────────────────────────────────────
@@ -233,6 +283,8 @@ class CerebrasSentimentService {
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
+        _trackUsage(body['usage'] as Map<String, dynamic>?);
+
         final text = (body['choices'][0]['message']['content'] as String? ?? '')
             .trim();
         _memCache[cacheKey] = LlmSentiment(
@@ -315,6 +367,8 @@ class CerebrasSentimentService {
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
+        _trackUsage(body['usage'] as Map<String, dynamic>?);
+
         final text = (body['choices'][0]['message']['content'] as String? ?? '')
             .trim();
         // Cache it
@@ -385,6 +439,8 @@ class CerebrasSentimentService {
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
+        _trackUsage(body['usage'] as Map<String, dynamic>?);
+
         final content =
             body['choices'][0]['message']['content'] as String? ?? '';
         final parsed = jsonDecode(content) as Map<String, dynamic>;
