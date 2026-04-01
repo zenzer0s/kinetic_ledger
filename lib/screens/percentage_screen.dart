@@ -17,8 +17,12 @@ class PercentageScreen extends ConsumerStatefulWidget {
 
 class _PercentageScreenState extends ConsumerState<PercentageScreen>
     with WidgetsBindingObserver {
-  final TextEditingController _amountController = TextEditingController(text: '');
-  final TextEditingController _percentController = TextEditingController(text: '');
+  final TextEditingController _amountController = TextEditingController(
+    text: '',
+  );
+  final TextEditingController _percentController = TextEditingController(
+    text: '',
+  );
 
   Timer? _debounce;
   bool _wasKeyboardOpen = false;
@@ -60,8 +64,7 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
 
   void _onInputChanged(String val) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce =
-        Timer(const Duration(milliseconds: 300), () => _recalculate());
+    _debounce = Timer(const Duration(milliseconds: 300), () => _recalculate());
     setState(() {});
   }
 
@@ -144,7 +147,9 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
                                     style: GoogleFonts.chakraPetch(
                                       fontSize: 48,
                                       fontWeight: FontWeight.w700,
-                                      color: zc.textPrimary.withValues(alpha: 0.9),
+                                      color: zc.textPrimary.withValues(
+                                        alpha: 0.9,
+                                      ),
                                       height: 1.0,
                                     ),
                                   ),
@@ -152,7 +157,9 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
                                   TweenAnimationBuilder<double>(
                                     key: ValueKey(_calculatedAmount),
                                     tween: Tween<double>(
-                                        begin: 0, end: _calculatedAmount),
+                                      begin: 0,
+                                      end: _calculatedAmount,
+                                    ),
                                     duration: const Duration(milliseconds: 500),
                                     curve: Curves.easeOutCubic,
                                     builder: (context, value, child) {
@@ -197,7 +204,9 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
                               // Summary pill
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 18, vertical: 16),
+                                  horizontal: 18,
+                                  vertical: 16,
+                                ),
                                 decoration: BoxDecoration(
                                   color: zc.surface,
                                   borderRadius: BorderRadius.circular(16),
@@ -456,11 +465,17 @@ class _FadeInUpState extends State<_FadeInUp>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
-    _opacity = Tween<double>(begin: 0.0, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
-    _offset = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _opacity = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+    _offset = Tween<Offset>(
+      begin: const Offset(0, 0.15),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     Future.delayed(Duration(milliseconds: widget.delay), () {
       if (mounted) _ctrl.forward();
     });
@@ -475,7 +490,8 @@ class _FadeInUpState extends State<_FadeInUp>
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
-        opacity: _opacity,
-        child: SlideTransition(position: _offset, child: widget.child));
+      opacity: _opacity,
+      child: SlideTransition(position: _offset, child: widget.child),
+    );
   }
 }

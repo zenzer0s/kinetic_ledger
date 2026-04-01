@@ -265,11 +265,12 @@ class _NewsCardState extends State<_NewsCard>
     final result = await CerebrasSentimentService().classifySingle(
       widget.enriched.article.headline,
     );
-    if (mounted)
+    if (mounted) {
       setState(() {
         _onDemandSentiment = result;
         _aiLoading = false;
       });
+    }
   }
 
   @override

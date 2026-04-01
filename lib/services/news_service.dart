@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sentiment.dart';
 
-
 // ── News Article ───────────────────────────────────────────────────────────────
 class NewsArticle {
   final int id;
@@ -28,15 +27,53 @@ class NewsArticle {
   Sentiment get sentiment {
     final text = '${headline.toLowerCase()} ${summary.toLowerCase()}';
     const bullish = [
-      'rise', 'rises', 'surge', 'surges', 'gain', 'gains', 'rally', 'rallies',
-      'strengthen', 'advance', 'advances', 'positive', 'optimism', 'beat',
-      'beats', 'exceed', 'jump', 'jumps', 'climbs', 'higher', 'soars',
+      'rise',
+      'rises',
+      'surge',
+      'surges',
+      'gain',
+      'gains',
+      'rally',
+      'rallies',
+      'strengthen',
+      'advance',
+      'advances',
+      'positive',
+      'optimism',
+      'beat',
+      'beats',
+      'exceed',
+      'jump',
+      'jumps',
+      'climbs',
+      'higher',
+      'soars',
     ];
     const bearish = [
-      'fall', 'falls', 'drop', 'drops', 'decline', 'declines', 'weaken',
-      'plunge', 'plunges', 'slip', 'slips', 'lower', 'negative', 'concern',
-      'fears', 'worry', 'disappoint', 'miss', 'recession', 'slowdown',
-      'pressure', 'tumbles', 'sinks', 'slumps',
+      'fall',
+      'falls',
+      'drop',
+      'drops',
+      'decline',
+      'declines',
+      'weaken',
+      'plunge',
+      'plunges',
+      'slip',
+      'slips',
+      'lower',
+      'negative',
+      'concern',
+      'fears',
+      'worry',
+      'disappoint',
+      'miss',
+      'recession',
+      'slowdown',
+      'pressure',
+      'tumbles',
+      'sinks',
+      'slumps',
     ];
     final b = bullish.where((w) => text.contains(w)).length;
     final r = bearish.where((w) => text.contains(w)).length;
@@ -53,15 +90,16 @@ class NewsArticle {
   }
 
   factory NewsArticle.fromJson(Map<String, dynamic> j) => NewsArticle(
-        id: (j['id'] as num?)?.toInt() ?? 0,
-        headline: j['headline'] as String? ?? '',
-        summary: j['summary'] as String? ?? '',
-        source: j['source'] as String? ?? '',
-        url: j['url'] as String? ?? '',
-        imageUrl: j['image'] as String?,
-        datetime: DateTime.fromMillisecondsSinceEpoch(
-            ((j['datetime'] as num?)?.toInt() ?? 0) * 1000),
-      );
+    id: (j['id'] as num?)?.toInt() ?? 0,
+    headline: j['headline'] as String? ?? '',
+    summary: j['summary'] as String? ?? '',
+    source: j['source'] as String? ?? '',
+    url: j['url'] as String? ?? '',
+    imageUrl: j['image'] as String?,
+    datetime: DateTime.fromMillisecondsSinceEpoch(
+      ((j['datetime'] as num?)?.toInt() ?? 0) * 1000,
+    ),
+  );
 }
 
 // ── Economic Event ─────────────────────────────────────────────────────────────
@@ -105,7 +143,9 @@ class EconomicEvent {
 
   factory EconomicEvent.fromJson(Map<String, dynamic> j) {
     DateTime t = DateTime.now();
-    try { t = DateTime.parse(j['time'] as String? ?? ''); } catch (_) {}
+    try {
+      t = DateTime.parse(j['time'] as String? ?? '');
+    } catch (_) {}
     return EconomicEvent(
       event: j['event'] as String? ?? '',
       country: j['country'] as String? ?? '',
@@ -131,7 +171,9 @@ class EconomicEvent {
       } else {
         final d = DateTime.parse(dateStr);
         // time like '08:30:00' or empty
-        if (timeStr.isNotEmpty && timeStr != 'Tentative' && timeStr != 'All Day') {
+        if (timeStr.isNotEmpty &&
+            timeStr != 'Tentative' &&
+            timeStr != 'All Day') {
           final parts = timeStr.split(':');
           final h = int.tryParse(parts[0]) ?? 0;
           final m = parts.length > 1 ? (int.tryParse(parts[1]) ?? 0) : 0;
@@ -147,17 +189,23 @@ class EconomicEvent {
     final impact = impactRaw == 'high'
         ? 'high'
         : impactRaw == 'medium' || impactRaw == 'moderate'
-            ? 'medium'
-            : 'low';
+        ? 'medium'
+        : 'low';
 
     return EconomicEvent(
       event: j['title'] as String? ?? '',
       country: j['country'] as String? ?? '',
       impact: impact,
       time: t,
-      actual: (j['actual'] as String?)?.isNotEmpty == true ? j['actual'] as String : null,
-      estimate: (j['forecast'] as String?)?.isNotEmpty == true ? j['forecast'] as String : null,
-      previous: (j['previous'] as String?)?.isNotEmpty == true ? j['previous'] as String : null,
+      actual: (j['actual'] as String?)?.isNotEmpty == true
+          ? j['actual'] as String
+          : null,
+      estimate: (j['forecast'] as String?)?.isNotEmpty == true
+          ? j['forecast'] as String
+          : null,
+      previous: (j['previous'] as String?)?.isNotEmpty == true
+          ? j['previous'] as String
+          : null,
       unit: '',
     );
   }
@@ -167,13 +215,31 @@ class EconomicEvent {
 // Currency → flag map (supports both currency codes and ISO-2)
 // ─────────────────────────────────────────────────────────────────────────────
 const _currencyFlag = {
-  'USD': '🇺🇸', 'EUR': '🇪🇺', 'GBP': '🇬🇧', 'JPY': '🇯🇵',
-  'CHF': '🇨🇭', 'AUD': '🇦🇺', 'CAD': '🇨🇦', 'NZD': '🇳🇿',
-  'CNY': '🇨🇳', 'INR': '🇮🇳', 'ALL': '🌐',
-  'US': '🇺🇸', 'EU': '🇪🇺', 'GB': '🇬🇧', 'JP': '🇯🇵',
-  'CH': '🇨🇭', 'AU': '🇦🇺', 'CA': '🇨🇦', 'NZ': '🇳🇿',
-  'CN': '🇨🇳', 'IN': '🇮🇳', 'DE': '🇩🇪', 'FR': '🇫🇷',
-  'SG': '🇸🇬', 'HK': '🇭🇰',
+  'USD': '🇺🇸',
+  'EUR': '🇪🇺',
+  'GBP': '🇬🇧',
+  'JPY': '🇯🇵',
+  'CHF': '🇨🇭',
+  'AUD': '🇦🇺',
+  'CAD': '🇨🇦',
+  'NZD': '🇳🇿',
+  'CNY': '🇨🇳',
+  'INR': '🇮🇳',
+  'ALL': '🌐',
+  'US': '🇺🇸',
+  'EU': '🇪🇺',
+  'GB': '🇬🇧',
+  'JP': '🇯🇵',
+  'CH': '🇨🇭',
+  'AU': '🇦🇺',
+  'CA': '🇨🇦',
+  'NZ': '🇳🇿',
+  'CN': '🇨🇳',
+  'IN': '🇮🇳',
+  'DE': '🇩🇪',
+  'FR': '🇫🇷',
+  'SG': '🇸🇬',
+  'HK': '🇭🇰',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -199,9 +265,7 @@ class NewsService {
       }
 
       final seen = <int>{};
-      return all
-          .where((a) => a.headline.isNotEmpty && seen.add(a.id))
-          .toList()
+      return all.where((a) => a.headline.isNotEmpty && seen.add(a.id)).toList()
         ..sort((a, b) => b.datetime.compareTo(a.datetime));
     } catch (_) {
       return [];
@@ -210,8 +274,9 @@ class NewsService {
 
   // ── Calendar cache keys ────────────────────────────────────────────────────
   static const _calDataKey = 'cal_cache_v1_data';
-  static const _calTsKey   = 'cal_cache_v1_ts';
-  static const _calDayKey  = 'cal_cache_v1_day';
+  static const _calTsKey = 'cal_cache_v1_ts';
+  static const _calDayKey = 'cal_cache_v1_day';
+
   /// Cache valid for 4 hours or until the calendar day rolls over.
   static const _calTtl = Duration(hours: 4);
 
@@ -225,20 +290,24 @@ class NewsService {
     // ── Try cache ──────────────────────────────────────────────────────────
     if (!forceRefresh) {
       final cachedJson = prefs.getString(_calDataKey);
-      final cachedTs   = prefs.getInt(_calTsKey);
-      final cachedDay  = prefs.getString(_calDayKey);
+      final cachedTs = prefs.getInt(_calTsKey);
+      final cachedDay = prefs.getString(_calDayKey);
 
       if (cachedJson != null && cachedTs != null && cachedDay != null) {
         final age = now.millisecondsSinceEpoch - cachedTs;
         final fresh = age < _calTtl.inMilliseconds && cachedDay == todayStr;
         if (fresh) {
-          debugPrint('[Calendar] Cache HIT (age ${(age / 60000).toStringAsFixed(1)}min)');
+          debugPrint(
+            '[Calendar] Cache HIT (age ${(age / 60000).toStringAsFixed(1)}min)',
+          );
           try {
             final raw = jsonDecode(cachedJson) as List;
             final events = <EconomicEvent>[];
             for (final item in raw) {
               try {
-                events.add(EconomicEvent.fromForexFactory(item as Map<String, dynamic>));
+                events.add(
+                  EconomicEvent.fromForexFactory(item as Map<String, dynamic>),
+                );
               } catch (_) {}
             }
             if (events.isNotEmpty) {
@@ -246,7 +315,13 @@ class NewsService {
             }
           } catch (_) {}
         } else {
-          debugPrint('[Calendar] Cache MISS (${fresh ? "stale" : cachedDay != todayStr ? "new day" : "expired"})');
+          debugPrint(
+            '[Calendar] Cache MISS (${fresh
+                ? "stale"
+                : cachedDay != todayStr
+                ? "new day"
+                : "expired"})',
+          );
         }
       } else {
         debugPrint('[Calendar] Cache MISS (no data)');
@@ -258,14 +333,22 @@ class NewsService {
     // ── Fetch from Forex Factory ───────────────────────────────────────────
     try {
       final results = await Future.wait([
-        http.get(
-          Uri.parse('https://nfs.faireconomy.media/ff_calendar_thisweek.json'),
-          headers: {'Accept': 'application/json'},
-        ).timeout(const Duration(seconds: 12)),
-        http.get(
-          Uri.parse('https://nfs.faireconomy.media/ff_calendar_nextweek.json'),
-          headers: {'Accept': 'application/json'},
-        ).timeout(const Duration(seconds: 12)),
+        http
+            .get(
+              Uri.parse(
+                'https://nfs.faireconomy.media/ff_calendar_thisweek.json',
+              ),
+              headers: {'Accept': 'application/json'},
+            )
+            .timeout(const Duration(seconds: 12)),
+        http
+            .get(
+              Uri.parse(
+                'https://nfs.faireconomy.media/ff_calendar_nextweek.json',
+              ),
+              headers: {'Accept': 'application/json'},
+            )
+            .timeout(const Duration(seconds: 12)),
       ]);
 
       final rawItems = <dynamic>[];
@@ -280,12 +363,16 @@ class NewsService {
         await prefs.setString(_calDataKey, jsonEncode(rawItems));
         await prefs.setInt(_calTsKey, now.millisecondsSinceEpoch);
         await prefs.setString(_calDayKey, todayStr);
-        debugPrint('[Calendar] Fetched ${rawItems.length} events from Forex Factory — cached');
+        debugPrint(
+          '[Calendar] Fetched ${rawItems.length} events from Forex Factory — cached',
+        );
 
         final events = <EconomicEvent>[];
         for (final item in rawItems) {
           try {
-            events.add(EconomicEvent.fromForexFactory(item as Map<String, dynamic>));
+            events.add(
+              EconomicEvent.fromForexFactory(item as Map<String, dynamic>),
+            );
           } catch (_) {}
         }
         return events..sort((a, b) => a.time.compareTo(b.time));
@@ -299,9 +386,11 @@ class NewsService {
       String fmt(DateTime d) =>
           '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
       final from = fmt(now.subtract(const Duration(days: 2)));
-      final to   = fmt(now.add(const Duration(days: 30)));
+      final to = fmt(now.add(const Duration(days: 30)));
       final r = await http
-          .get(Uri.parse('$_base/calendar/economic?from=$from&to=$to&token=$_key'))
+          .get(
+            Uri.parse('$_base/calendar/economic?from=$from&to=$to&token=$_key'),
+          )
           .timeout(const Duration(seconds: 10));
       if (r.statusCode == 200) {
         final data = jsonDecode(r.body) as Map<String, dynamic>;
@@ -320,9 +409,15 @@ class NewsService {
         final raw = jsonDecode(stale) as List;
         final events = <EconomicEvent>[];
         for (final item in raw) {
-          try { events.add(EconomicEvent.fromForexFactory(item as Map<String, dynamic>)); } catch (_) {}
+          try {
+            events.add(
+              EconomicEvent.fromForexFactory(item as Map<String, dynamic>),
+            );
+          } catch (_) {}
         }
-        if (events.isNotEmpty) return events..sort((a, b) => a.time.compareTo(b.time));
+        if (events.isNotEmpty) {
+          return events..sort((a, b) => a.time.compareTo(b.time));
+        }
       } catch (_) {}
     }
 

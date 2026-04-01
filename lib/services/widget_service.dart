@@ -28,16 +28,24 @@ class WidgetService {
       final changeStr = '$sign${changePercent.toStringAsFixed(2)}%';
 
       final subLabel =
-          '1 ${fromMeta.symbol} = ${toMeta.symbol}${crossRate.toStringAsFixed(crossRate >= 100 ? 2 : crossRate >= 1 ? 4 : 6)}';
+          '1 ${fromMeta.symbol} = ${toMeta.symbol}${crossRate.toStringAsFixed(crossRate >= 100
+              ? 2
+              : crossRate >= 1
+              ? 4
+              : 6)}';
 
       await HomeWidget.saveWidgetData<String>('rate', rateDisplay);
       await HomeWidget.saveWidgetData<String>('sub_label', subLabel);
       await HomeWidget.saveWidgetData<String>('change', changeStr);
       await HomeWidget.saveWidgetData<String>('updated', rates.updatedLabel);
       await HomeWidget.saveWidgetData<String>(
-          'pair_label', '$fromCurrency → $toCurrency');
+        'pair_label',
+        '$fromCurrency → $toCurrency',
+      );
       await HomeWidget.saveWidgetData<String>(
-          'flag_label', '${fromMeta.flag}→${toMeta.flag}');
+        'flag_label',
+        '${fromMeta.flag}→${toMeta.flag}',
+      );
       await HomeWidget.saveWidgetData<bool>('is_positive', isPositive);
 
       await HomeWidget.updateWidget(

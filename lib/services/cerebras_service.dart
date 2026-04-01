@@ -47,7 +47,10 @@ class CerebrasSentimentService {
 
   // ── Cache key: first 60 chars of headline, lowercased ─────────────────────
   static String _cacheKey(String headline) {
-    final normalized = headline.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+    final normalized = headline
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
     return _prefixKey + normalized.substring(0, normalized.length.clamp(0, 60));
   }
 
@@ -97,7 +100,9 @@ class CerebrasSentimentService {
     for (int i = 0; i < batch.length; i++) {
       final cached = await _readCache(batch[i]);
       if (cached != null) {
-        debugPrint('[Cache] HIT for "${batch[i].substring(0, batch[i].length.clamp(0, 30))}..."');
+        debugPrint(
+          '[Cache] HIT for "${batch[i].substring(0, batch[i].length.clamp(0, 30))}..."',
+        );
         result[i] = cached;
       } else {
         uncachedIndices.add(i);
@@ -111,7 +116,9 @@ class CerebrasSentimentService {
 
     // Only call API for uncached headlines
     final uncachedHeadlines = uncachedIndices.map((i) => batch[i]).toList();
-    debugPrint('[Cerebras] Fetching ${uncachedHeadlines.length}/${batch.length} (rest cached)');
+    debugPrint(
+      '[Cerebras] Fetching ${uncachedHeadlines.length}/${batch.length} (rest cached)',
+    );
     final apiResults = await _callApi(uncachedHeadlines);
 
     // Map back to original positions and write to cache
@@ -130,7 +137,9 @@ class CerebrasSentimentService {
     // Check cache first
     final cached = await _readCache(headline);
     if (cached != null) {
-      debugPrint('[Cache] HIT (single) for "${headline.substring(0, headline.length.clamp(0, 30))}..."');
+      debugPrint(
+        '[Cache] HIT (single) for "${headline.substring(0, headline.length.clamp(0, 30))}..."',
+      );
       return cached;
     }
 
@@ -152,9 +161,8 @@ class CerebrasSentimentService {
     String? previous,
     required String dateLabel,
   }) async {
-    final cacheKey = _prefixKey +
-        'summary_' +
-        '$country|$eventName|${actual ?? ""}'.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+    final cacheKey =
+        '${_prefixKey}summary_${'$country|$eventName|${actual ?? ""}'.toLowerCase().replaceAll(RegExp(r'\s+'), '_')}';
 
     // Memory cache
     if (_memCache.containsKey(cacheKey)) return _memCache[cacheKey]!.reason;
@@ -164,7 +172,10 @@ class CerebrasSentimentService {
       final prefs = await SharedPreferences.getInstance();
       final cached = prefs.getString(cacheKey);
       if (cached != null && cached.isNotEmpty) {
-        _memCache[cacheKey] = LlmSentiment(sentiment: Sentiment.neutral, reason: cached);
+        _memCache[cacheKey] = LlmSentiment(
+          sentiment: Sentiment.neutral,
+          reason: cached,
+        );
         return cached;
       }
     } catch (_) {}
@@ -222,9 +233,12 @@ class CerebrasSentimentService {
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
-        final text =
-            (body['choices'][0]['message']['content'] as String? ?? '').trim();
-        _memCache[cacheKey] = LlmSentiment(sentiment: Sentiment.neutral, reason: text);
+        final text = (body['choices'][0]['message']['content'] as String? ?? '')
+            .trim();
+        _memCache[cacheKey] = LlmSentiment(
+          sentiment: Sentiment.neutral,
+          reason: text,
+        );
         try {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(cacheKey, text);
@@ -245,9 +259,8 @@ class CerebrasSentimentService {
     String? estimate,
     String? previous,
   }) async {
-    final cacheKey = _prefixKey +
-        'cal_' +
-        '$country|$eventName'.toLowerCase().replaceAll(RegExp(r'\s+'), '_');
+    final cacheKey =
+        '${_prefixKey}cal_${'$country|$eventName'.toLowerCase().replaceAll(RegExp(r'\s+'), '_')}';
 
     // Check caches first
     if (_memCache.containsKey(cacheKey)) {
@@ -257,8 +270,10 @@ class CerebrasSentimentService {
       final prefs = await SharedPreferences.getInstance();
       final cached = prefs.getString(cacheKey);
       if (cached != null && cached.isNotEmpty) {
-        _memCache[cacheKey] =
-            LlmSentiment(sentiment: Sentiment.neutral, reason: cached);
+        _memCache[cacheKey] = LlmSentiment(
+          sentiment: Sentiment.neutral,
+          reason: cached,
+        );
         return cached;
       }
     } catch (_) {}
@@ -284,7 +299,7 @@ class CerebrasSentimentService {
                   'role': 'system',
                   'content':
                       'You are a professional forex trader analyst specializing in Gold (XAU/USD) and USD/INR. '
-                          'Answer in 1 concise sentence (max 15 words). Focus on Gold price impact.',
+                      'Answer in 1 concise sentence (max 15 words). Focus on Gold price impact.',
                 },
                 {
                   'role': 'user',
@@ -300,11 +315,13 @@ class CerebrasSentimentService {
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
-        final text =
-            (body['choices'][0]['message']['content'] as String? ?? '').trim();
+        final text = (body['choices'][0]['message']['content'] as String? ?? '')
+            .trim();
         // Cache it
-        _memCache[cacheKey] =
-            LlmSentiment(sentiment: Sentiment.neutral, reason: text);
+        _memCache[cacheKey] = LlmSentiment(
+          sentiment: Sentiment.neutral,
+          reason: text,
+        );
         try {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(cacheKey, text);
@@ -403,4 +420,17 @@ class CerebrasSentimentService {
 
   static LlmSentiment _neutral() =>
       const LlmSentiment(sentiment: Sentiment.neutral, reason: '');
+
+  // ── Clear all caches ────────────────────────────────────────────────────────
+  static Future<void> clearAllCaches() async {
+    _memCache.clear();
+    final prefs = await SharedPreferences.getInstance();
+    final allKeys = prefs.getKeys();
+    for (final k in allKeys) {
+      if (k.startsWith(_prefixKey)) {
+        await prefs.remove(k);
+      }
+    }
+    debugPrint('[Cerebras] All caches cleared');
+  }
 }

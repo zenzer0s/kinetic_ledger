@@ -9,6 +9,7 @@ import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/percentage_screen.dart';
 import 'screens/news_screen.dart';
+import 'screens/settings_screen.dart';
 import 'services/notification_service.dart';
 
 void main() async {
@@ -71,7 +72,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = ref.watch(themeProvider) == ThemeMode.dark;
     final zc = context.zc;
 
     return Scaffold(
@@ -112,10 +112,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                         2, Icons.newspaper_rounded, 'PULSE', zc),
                     ),
 
-                    // ── Theme Toggle ───────────────────────────────────────
+                    // ── Settings ───────────────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.only(right: 12),
-                      child: _ThemeToggle(isDark: isDark),
+                      child: _SettingsButton(zc: zc),
                     ),
                   ],
                 ),
@@ -173,102 +173,30 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   }
 }
 
-// ── Animated Theme Toggle ─────────────────────────────────────────────────────
-class _ThemeToggle extends ConsumerWidget {
-  final bool isDark;
-  const _ThemeToggle({required this.isDark});
+// ── Settings Button ───────────────────────────────────────────────────────────
+class _SettingsButton extends StatelessWidget {
+  final ZenithColors zc;
+  const _SettingsButton({required this.zc});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final zc = context.zc;
-
+  Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
         HapticFeedback.lightImpact();
-        ref.read(themeProvider.notifier).toggle();
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+        );
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeOutCubic,
-        width: 52,
-        height: 28,
+      child: Container(
+        width: 42,
+        height: 42,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          color: isDark
-              ? zc.accent.withValues(alpha: 0.2)
-              : const Color(0xFFFACC15).withValues(alpha: 0.2),
-          border: Border.all(
-            color: isDark
-                ? zc.accent.withValues(alpha: 0.4)
-                : const Color(0xFFFACC15).withValues(alpha: 0.5),
-            width: 1,
-          ),
+          color: zc.surfaceAlt.withValues(alpha: 0.5),
+          shape: BoxShape.circle,
+          border: Border.all(color: zc.border),
         ),
-        child: Stack(
-          children: [
-            // Track icons
-            Positioned(
-              left: 7,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Icon(
-                  Icons.nightlight_round,
-                  size: 12,
-                  color: isDark
-                      ? zc.accent
-                      : zc.textDim,
-                ),
-              ),
-            ),
-            Positioned(
-              right: 7,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Icon(
-                  Icons.wb_sunny_rounded,
-                  size: 12,
-                  color: isDark
-                      ? zc.textDim
-                      : const Color(0xFFFACC15),
-                ),
-              ),
-            ),
-            // Sliding thumb
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              left: isDark ? 3 : null,
-              right: isDark ? null : 3,
-              top: 3,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: 22,
-                height: 22,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isDark ? zc.accent : const Color(0xFFFACC15),
-                  boxShadow: [
-                    BoxShadow(
-                      color: (isDark ? zc.accent : const Color(0xFFFACC15))
-                          .withValues(alpha: 0.4),
-                      blurRadius: 8,
-                      spreadRadius: 1,
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Icon(
-                    isDark ? Icons.nightlight_round : Icons.wb_sunny_rounded,
-                    size: 12,
-                    color: isDark ? Colors.white : Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+        child: Icon(Icons.tune_rounded, color: zc.textPrimary, size: 18),
       ),
     );
   }

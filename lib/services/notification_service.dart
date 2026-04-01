@@ -6,6 +6,7 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'news_service.dart';
+import '../providers/settings_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Notification IDs (deterministic so we can cancel by ID)
@@ -80,9 +81,10 @@ class NotificationService {
     );
 
     // Create channels (Android 8+)
-    final android =
-        _plugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     await android?.createNotificationChannel(_channelPreEvent);
     await android?.createNotificationChannel(_channelDigest);
 
@@ -93,16 +95,21 @@ class NotificationService {
   // ── Permission request ────────────────────────────────────────────────────
   Future<bool> requestPermission() async {
     if (Platform.isAndroid) {
-      final android = _plugin.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       final granted = await android?.requestNotificationsPermission() ?? false;
       debugPrint('[Notifications] Android permission granted: $granted');
       return granted;
     }
     if (Platform.isIOS) {
-      final ios = _plugin.resolvePlatformSpecificImplementation<
-          IOSFlutterLocalNotificationsPlugin>();
-      final granted = await ios?.requestPermissions(
+      final ios = _plugin
+          .resolvePlatformSpecificImplementation<
+            IOSFlutterLocalNotificationsPlugin
+          >();
+      final granted =
+          await ios?.requestPermissions(
             alert: true,
             badge: true,
             sound: true,
@@ -114,10 +121,12 @@ class NotificationService {
     return false;
   }
 
-  // ── Schedule all Tier-1 alerts from calendar data ─────────────────────────
   /// Call this every time fresh calendar data is loaded.
   /// Cancels all previous event alerts before rescheduling.
-  Future<void> scheduleCalendarAlerts(List<EconomicEvent> events) async {
+  Future<void> scheduleCalendarAlerts(
+    List<EconomicEvent> events,
+    ZenithSettings settings,
+  ) async {
     if (!_initialized) await init();
     // Drop concurrent calls — only one scheduling run at a time
     if (_scheduling) {
@@ -133,22 +142,39 @@ class NotificationService {
       int alertIndex15 = 1;
       int alertIndex5 = 500;
 
-      // Only schedule HIGH impact events in the next 7 days
+      // Filter events based on impact and currencies in settings
       final upcoming = events.where((e) {
-        if (e.impact.toLowerCase() != 'high') return false;
         if (e.time.isBefore(now)) return false;
         if (e.time.difference(now).inDays > 7) return false;
+
+        // Impact filtering
+        final loweImpact = e.impact.toLowerCase();
+        if (settings.impactFilter == 'high') {
+          if (loweImpact != 'high') return false;
+        } else if (settings.impactFilter == 'med_high') {
+          if (loweImpact != 'high' && loweImpact != 'medium') return false;
+        }
+
+        // Currency filtering
+        if (!settings.currencyFilters.contains(e.country.toUpperCase())) {
+          return false;
+        }
+
         return true;
       }).toList();
 
-      debugPrint('[Notifications] Scheduling alerts for ${upcoming.length} HIGH events');
+      debugPrint(
+        '[Notifications] Scheduling alerts for ${upcoming.length} events (Filter: ${settings.impactFilter})',
+      );
 
       for (final event in upcoming) {
         final fireAt15 = event.time.subtract(const Duration(minutes: 15));
         final fireAt5 = event.time.subtract(const Duration(minutes: 5));
 
         // ── 15-min warning ──────────────────────────────────────────────────
-        if (fireAt15.isAfter(now) && alertIndex15 < 500) {
+        if (settings.alert15Min &&
+            fireAt15.isAfter(now) &&
+            alertIndex15 < 500) {
           await _schedulePreEvent(
             id: alertIndex15++,
             event: event,
@@ -158,7 +184,7 @@ class NotificationService {
         }
 
         // ── 5-min warning ───────────────────────────────────────────────────
-        if (fireAt5.isAfter(now) && alertIndex5 < 1000) {
+        if (settings.alert5Min && fireAt5.isAfter(now) && alertIndex5 < 1000) {
           await _schedulePreEvent(
             id: alertIndex5++,
             event: event,
@@ -168,8 +194,10 @@ class NotificationService {
         }
       }
 
-      debugPrint('[Notifications] Scheduled ${alertIndex15 - 1} × 15min + '
-          '${alertIndex5 - 500} × 5min alerts');
+      debugPrint(
+        '[Notifications] Scheduled ${alertIndex15 - 1} × 15min + '
+        '${alertIndex5 - 500} × 5min alerts',
+      );
     } finally {
       _scheduling = false;
     }
@@ -183,14 +211,22 @@ class NotificationService {
   }) async {
     final isUrgent = minutesBefore <= 5;
     final impact = event.impact.toLowerCase();
-    final emoji = impact == 'high' ? '🔴' : impact == 'medium' ? '🟡' : '🔵';
+    final emoji = impact == 'high'
+        ? '🔴'
+        : impact == 'medium'
+        ? '🟡'
+        : '🔵';
 
     final title = '$emoji $minutesBefore min — ${event.event}';
 
     // Build body with available data
     final parts = <String>[];
-    if (event.estimate != null) parts.add('Forecast: ${event.estimate}${event.unit}');
-    if (event.previous != null) parts.add('Prev: ${event.previous}${event.unit}');
+    if (event.estimate != null) {
+      parts.add('Forecast: ${event.estimate}${event.unit}');
+    }
+    if (event.previous != null) {
+      parts.add('Prev: ${event.previous}${event.unit}');
+    }
     final body = parts.isNotEmpty ? parts.join('  •  ') : 'XAU/USD watch level';
 
     try {
@@ -208,9 +244,7 @@ class NotificationService {
             priority: isUrgent ? Priority.max : Priority.high,
             ticker: title,
             icon: '@mipmap/ic_launcher',
-            color: isUrgent
-                ? const Color(0xFFEF4444)
-                : const Color(0xFFFBBF24),
+            color: isUrgent ? const Color(0xFFEF4444) : const Color(0xFFFBBF24),
             enableLights: true,
             ledColor: const Color(0xFFEF4444),
             ledOnMs: 500,
@@ -228,20 +262,37 @@ class NotificationService {
         uiLocalNotificationDateInterpretation:
             UILocalNotificationDateInterpretation.absoluteTime,
       );
-      debugPrint('[Notifications] Scheduled ${minutesBefore}min alert: ${event.event} @ $fireAt');
+      debugPrint(
+        '[Notifications] Scheduled ${minutesBefore}min alert: ${event.event} @ $fireAt',
+      );
     } catch (e) {
       debugPrint('[Notifications] Failed to schedule: $e');
     }
   }
 
   // ── Daily Digest — 7:00 AM local time ────────────────────────────────────
-  Future<void> scheduleDailyDigest(List<EconomicEvent> events) async {
+  Future<void> scheduleDailyDigest(
+    List<EconomicEvent> events,
+    ZenithSettings settings,
+  ) async {
     if (!_initialized) await init();
     await _plugin.cancel(0); // Cancel existing digest
 
+    if (!settings.dailyDigest) return;
+
     final today = DateTime.now();
     final todayHighCount = events.where((e) {
-      return e.impact.toLowerCase() == 'high' &&
+      final loweImpact = e.impact.toLowerCase();
+      bool impactMatches = false;
+      if (settings.impactFilter == 'high') {
+        impactMatches = loweImpact == 'high';
+      } else if (settings.impactFilter == 'med_high') {
+        impactMatches = loweImpact == 'high' || loweImpact == 'medium';
+      } else {
+        impactMatches = true;
+      }
+
+      return impactMatches &&
           e.time.year == today.year &&
           e.time.month == today.month &&
           e.time.day == today.day;
@@ -258,11 +309,13 @@ class NotificationService {
 
     // Build a preview of tomorrow's high-impact events
     final tomorrowEvents = events
-        .where((e) =>
-            e.impact.toLowerCase() == 'high' &&
-            e.time.year == tomorrow.year &&
-            e.time.month == tomorrow.month &&
-            e.time.day == tomorrow.day)
+        .where(
+          (e) =>
+              e.impact.toLowerCase() == 'high' &&
+              e.time.year == tomorrow.year &&
+              e.time.month == tomorrow.month &&
+              e.time.day == tomorrow.day,
+        )
         .take(3)
         .map((e) => '• ${e.flag} ${e.event}')
         .join('\n');
@@ -316,7 +369,9 @@ class NotificationService {
             UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.time, // repeats daily
       );
-      debugPrint('[Notifications] Daily digest scheduled @ ${digestFire.toLocal()}');
+      debugPrint(
+        '[Notifications] Daily digest scheduled @ ${digestFire.toLocal()}',
+      );
     } catch (e) {
       debugPrint('[Notifications] Digest schedule failed: $e');
     }

@@ -19,8 +19,9 @@ class ConverterScreen extends ConsumerStatefulWidget {
 
 class _ConverterScreenState extends ConsumerState<ConverterScreen>
     with WidgetsBindingObserver {
-  final TextEditingController _inputController =
-      TextEditingController(text: '');
+  final TextEditingController _inputController = TextEditingController(
+    text: '',
+  );
   Timer? _debounce;
   bool _wasKeyboardOpen = false;
   int _lastHapticValue = 0;
@@ -63,7 +64,9 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
   void _onInputChanged(String val) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(
-        const Duration(milliseconds: 300), () => _evaluateInput(val));
+      const Duration(milliseconds: 300),
+      () => _evaluateInput(val),
+    );
     setState(() {});
   }
 
@@ -77,7 +80,8 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
     if (rateAsync.hasValue) {
       setState(() {
         _convertedValue =
-            _parsedAmount * rateAsync.value!.crossRate(_fromCurrency, _toCurrency);
+            _parsedAmount *
+            rateAsync.value!.crossRate(_fromCurrency, _toCurrency);
       });
     }
   }
@@ -93,14 +97,20 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
   }
 
   void _selectFromCurrency(String code) {
-    if (code == _toCurrency) { _swapCurrencies(); return; }
+    if (code == _toCurrency) {
+      _swapCurrencies();
+      return;
+    }
     HapticFeedback.selectionClick();
     setState(() => _fromCurrency = code);
     _evaluateInput(_inputController.text);
   }
 
   void _selectToCurrency(String code) {
-    if (code == _fromCurrency) { _swapCurrencies(); return; }
+    if (code == _fromCurrency) {
+      _swapCurrencies();
+      return;
+    }
     HapticFeedback.selectionClick();
     setState(() => _toCurrency = code);
     _evaluateInput(_inputController.text);
@@ -151,7 +161,11 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
       final r = rateAsync.value!;
       liveRate = r.crossRate(_fromCurrency, _toCurrency);
       rateLabelStr =
-          '1 ${fromMeta.symbol} = ${toMeta.symbol}${liveRate.toStringAsFixed(liveRate >= 100 ? 2 : liveRate >= 1 ? 4 : 6)}';
+          '1 ${fromMeta.symbol} = ${toMeta.symbol}${liveRate.toStringAsFixed(liveRate >= 100
+              ? 2
+              : liveRate >= 1
+              ? 4
+              : 6)}';
       changePercent = r.changePercent;
       if (sparkAsync.hasValue) {
         final pts = sparkAsync.value!.points;
@@ -214,7 +228,9 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
                                     style: GoogleFonts.chakraPetch(
                                       fontSize: 48,
                                       fontWeight: FontWeight.w700,
-                                      color: zc.textPrimary.withValues(alpha: 0.9),
+                                      color: zc.textPrimary.withValues(
+                                        alpha: 0.9,
+                                      ),
                                       height: 1.0,
                                     ),
                                   ),
@@ -222,7 +238,9 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
                                   TweenAnimationBuilder<double>(
                                     key: ValueKey(_convertedValue),
                                     tween: Tween<double>(
-                                        begin: 0, end: _convertedValue),
+                                      begin: 0,
+                                      end: _convertedValue,
+                                    ),
                                     duration: const Duration(milliseconds: 500),
                                     curve: Curves.easeOutCubic,
                                     builder: (context, value, child) {
@@ -250,7 +268,9 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
                                       style: GoogleFonts.chakraPetch(
                                         fontSize: 28,
                                         fontWeight: FontWeight.w600,
-                                        color: zc.textPrimary.withValues(alpha: 0.6),
+                                        color: zc.textPrimary.withValues(
+                                          alpha: 0.6,
+                                        ),
                                         height: 1.0,
                                       ),
                                     ),
@@ -266,7 +286,10 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
                                 width: double.infinity,
                                 child: sparkAsync.when(
                                   data: (spark) => CustomPaint(
-                                    painter: _LiveSparklinePainter(spark, zc.accent),
+                                    painter: _LiveSparklinePainter(
+                                      spark,
+                                      zc.accent,
+                                    ),
                                   ),
                                   loading: () => CustomPaint(
                                     painter: _SparklinePlaceholder(zc.accent),
@@ -282,7 +305,9 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
                               // ── RATE CARD ────────────────────────────────
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 18, vertical: 16),
+                                  horizontal: 18,
+                                  vertical: 16,
+                                ),
                                 decoration: BoxDecoration(
                                   color: zc.surface,
                                   borderRadius: BorderRadius.circular(16),
@@ -337,7 +362,9 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
                             const SizedBox(height: 16),
                             Container(
                               width: double.infinity,
-                              margin: const EdgeInsets.symmetric(horizontal: 24),
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
                               padding: const EdgeInsets.all(24),
                               decoration: BoxDecoration(
                                 color: zc.surface,
@@ -373,7 +400,8 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
                                                 controller: _inputController,
                                                 onChanged: _onInputChanged,
                                                 cursorColor: zc.accent,
-                                                keyboardType: TextInputType.text,
+                                                keyboardType:
+                                                    TextInputType.text,
                                                 style: GoogleFonts.chakraPetch(
                                                   fontSize: 48,
                                                   fontWeight: FontWeight.w800,
@@ -383,16 +411,16 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
                                                 ),
                                                 decoration:
                                                     const InputDecoration(
-                                                  border: InputBorder.none,
-                                                  enabledBorder:
-                                                      InputBorder.none,
-                                                  focusedBorder:
-                                                      InputBorder.none,
-                                                  isDense: true,
-                                                  contentPadding:
-                                                      EdgeInsets.zero,
-                                                  filled: false,
-                                                ),
+                                                      border: InputBorder.none,
+                                                      enabledBorder:
+                                                          InputBorder.none,
+                                                      focusedBorder:
+                                                          InputBorder.none,
+                                                      isDense: true,
+                                                      contentPadding:
+                                                          EdgeInsets.zero,
+                                                      filled: false,
+                                                    ),
                                               ),
                                             ),
                                           ],
@@ -402,11 +430,14 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
                                       // Vertical currency pill
                                       Container(
                                         padding: const EdgeInsets.symmetric(
-                                            vertical: 12, horizontal: 12),
+                                          vertical: 12,
+                                          horizontal: 12,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: zc.surfaceAlt,
-                                          borderRadius:
-                                              BorderRadius.circular(100),
+                                          borderRadius: BorderRadius.circular(
+                                            100,
+                                          ),
                                         ),
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
@@ -538,28 +569,29 @@ class _CurrencySelectorRow extends StatelessWidget {
                       duration: const Duration(milliseconds: 200),
                       curve: Curves.easeOutCubic,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? zc.accent.withValues(alpha: 0.15)
                             : isDisabled
-                                ? Colors.transparent
-                                : zc.surfaceAlt,
+                            ? Colors.transparent
+                            : zc.surfaceAlt,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
                           color: isSelected
                               ? zc.accent.withValues(alpha: 0.6)
                               : isDisabled
-                                  ? zc.border
-                                  : zc.border,
+                              ? zc.border
+                              : zc.border,
                           width: 1,
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(meta.flag,
-                              style: const TextStyle(fontSize: 12)),
+                          Text(meta.flag, style: const TextStyle(fontSize: 12)),
                           const SizedBox(width: 5),
                           Text(
                             meta.code,
@@ -569,8 +601,8 @@ class _CurrencySelectorRow extends StatelessWidget {
                               color: isSelected
                                   ? zc.accentSoft
                                   : isDisabled
-                                      ? zc.textDim
-                                      : zc.textMuted,
+                                  ? zc.textDim
+                                  : zc.textMuted,
                             ),
                           ),
                         ],
@@ -592,8 +624,11 @@ class _ChangeBadge extends StatelessWidget {
   final double percent;
   final bool positive;
   final ZenithColors zc;
-  const _ChangeBadge(
-      {required this.percent, required this.positive, required this.zc});
+  const _ChangeBadge({
+    required this.percent,
+    required this.positive,
+    required this.zc,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -646,7 +681,8 @@ class _LoadingBadge extends StatelessWidget {
         child: LinearProgressIndicator(
           backgroundColor: zc.border,
           valueColor: AlwaysStoppedAnimation<Color>(
-              zc.accent.withValues(alpha: 0.4)),
+            zc.accent.withValues(alpha: 0.4),
+          ),
         ),
       ),
     );
@@ -689,11 +725,10 @@ class _LiveSparklinePainter extends CustomPainter {
     canvas.drawPath(
       fillPath,
       Paint()
-        ..shader = ui.Gradient.linear(
-          Offset.zero,
-          Offset(0, size.height),
-          [accent.withValues(alpha: 0.35), accent.withValues(alpha: 0.0)],
-        )
+        ..shader = ui.Gradient.linear(Offset.zero, Offset(0, size.height), [
+          accent.withValues(alpha: 0.35),
+          accent.withValues(alpha: 0.0),
+        ])
         ..style = PaintingStyle.fill,
     );
     canvas.drawPath(
@@ -702,11 +737,7 @@ class _LiveSparklinePainter extends CustomPainter {
         ..shader = ui.Gradient.linear(
           Offset.zero,
           Offset(size.width, 0),
-          [
-            accent.withValues(alpha: 0.3),
-            accent,
-            const Color(0xFFA5B4FC),
-          ],
+          [accent.withValues(alpha: 0.3), accent, const Color(0xFFA5B4FC)],
           [0.0, 0.7, 1.0],
         )
         ..style = PaintingStyle.stroke
@@ -716,9 +747,15 @@ class _LiveSparklinePainter extends CustomPainter {
     final endX = (pts.length - 1) * step;
     final endY = normY(pts.last);
     canvas.drawCircle(
-        Offset(endX, endY), 8, Paint()..color = accent.withValues(alpha: 0.25));
+      Offset(endX, endY),
+      8,
+      Paint()..color = accent.withValues(alpha: 0.25),
+    );
     canvas.drawCircle(
-        Offset(endX, endY), 3.5, Paint()..color = const Color(0xFFA5B4FC));
+      Offset(endX, endY),
+      3.5,
+      Paint()..color = const Color(0xFFA5B4FC),
+    );
   }
 
   @override
@@ -773,12 +810,17 @@ class _FadeInUpState extends State<_FadeInUp>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
-    _opacity = Tween<double>(begin: 0.0, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _opacity = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _offset = Tween<Offset>(
-            begin: const Offset(0, 0.15), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+      begin: const Offset(0, 0.15),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     Future.delayed(Duration(milliseconds: widget.delay), () {
       if (mounted) _ctrl.forward();
     });
@@ -793,7 +835,8 @@ class _FadeInUpState extends State<_FadeInUp>
   @override
   Widget build(BuildContext context) {
     return FadeTransition(
-        opacity: _opacity,
-        child: SlideTransition(position: _offset, child: widget.child));
+      opacity: _opacity,
+      child: SlideTransition(position: _offset, child: widget.child),
+    );
   }
 }

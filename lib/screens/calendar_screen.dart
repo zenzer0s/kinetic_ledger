@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../providers/news_provider.dart';
+import '../providers/settings_provider.dart';
 import '../services/cerebras_service.dart';
 import '../services/news_service.dart';
 import '../theme/app_theme.dart';
@@ -27,8 +28,7 @@ class EconomicCalendarWidget extends ConsumerStatefulWidget {
       _EconomicCalendarWidgetState();
 }
 
-class _EconomicCalendarWidgetState
-    extends ConsumerState<EconomicCalendarWidget>
+class _EconomicCalendarWidgetState extends ConsumerState<EconomicCalendarWidget>
     with TickerProviderStateMixin {
   DateTime _focusedMonth = DateTime.now();
   DateTime? _selectedDay;
@@ -73,24 +73,52 @@ class _EconomicCalendarWidgetState
     super.dispose();
   }
 
-  List<EconomicEvent> _applyFilter(List<EconomicEvent> events) {
+  List<EconomicEvent> _applyFilter(
+    List<EconomicEvent> events,
+    ZenithSettings settings,
+  ) {
+    // ── Global Settings Filter ──────────────────────────────────────────────
+    var list = events.where((e) {
+      // Currency filter
+      if (!settings.currencyFilters.contains(e.country.toUpperCase())) {
+        return false;
+      }
+
+      // Impact filter
+      final loweImpact = e.impact.toLowerCase();
+      if (settings.impactFilter == 'high') {
+        if (loweImpact != 'high') return false;
+      } else if (settings.impactFilter == 'med_high') {
+        if (loweImpact != 'high' && loweImpact != 'medium') return false;
+      }
+      return true;
+    }).toList();
+
+    // ── Local UI Toggle Filter ──────────────────────────────────────────────
     switch (_filter) {
       case CalFilter.all:
-        return events;
+        return list;
       case CalFilter.high:
-        return events.where((e) => e.impact.toLowerCase() == 'high').toList();
+        return list.where((e) => e.impact.toLowerCase() == 'high').toList();
       case CalFilter.usd:
-        // FF uses 'USD', Finnhub uses 'US'
-        return events.where((e) => e.country == 'USD' || e.country == 'US').toList();
+        return list
+            .where((e) => e.country == 'USD' || e.country == 'US')
+            .toList();
       case CalFilter.eur:
-        return events.where((e) => e.country == 'EUR' || e.country == 'EU' || e.country == 'DE').toList();
+        return list
+            .where(
+              (e) =>
+                  e.country == 'EUR' || e.country == 'EU' || e.country == 'DE',
+            )
+            .toList();
       case CalFilter.gbp:
-        return events.where((e) => e.country == 'GBP' || e.country == 'GB').toList();
+        return list
+            .where((e) => e.country == 'GBP' || e.country == 'GB')
+            .toList();
     }
   }
 
-  List<EconomicEvent> _eventsForDay(
-      List<EconomicEvent> all, DateTime day) {
+  List<EconomicEvent> _eventsForDay(List<EconomicEvent> all, DateTime day) {
     return all.where((e) {
       return e.time.year == day.year &&
           e.time.month == day.month &&
@@ -104,17 +132,13 @@ class _EconomicCalendarWidgetState
         .where((e) => e.impact.toLowerCase() == 'high' && e.time.isAfter(now))
         .toList();
     if (upcoming.isEmpty) return null;
-    return upcoming.reduce(
-        (a, b) => a.time.isBefore(b.time) ? a : b);
+    return upcoming.reduce((a, b) => a.time.isBefore(b.time) ? a : b);
   }
 
   void _changeMonth(int delta) {
     _gridCtrl.reset();
     setState(() {
-      _focusedMonth = DateTime(
-        _focusedMonth.year,
-        _focusedMonth.month + delta,
-      );
+      _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + delta);
       _selectedDay = null;
     });
     _gridCtrl.forward();
@@ -132,7 +156,8 @@ class _EconomicCalendarWidgetState
         onRetry: () => ref.invalidate(calendarProvider),
       ),
       data: (rawEvents) {
-        final events = _applyFilter(rawEvents);
+        final settings = ref.watch(settingsProvider);
+        final events = _applyFilter(rawEvents, settings);
         final selectedEvents = _selectedDay != null
             ? _eventsForDay(events, _selectedDay!)
             : <EconomicEvent>[];
@@ -164,8 +189,10 @@ class _EconomicCalendarWidgetState
               // ── Filter Chips ─────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 8,
+                  ),
                   child: _FilterRow(
                     selected: _filter,
                     zc: zc,
@@ -233,16 +260,13 @@ class _EconomicCalendarWidgetState
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Expanded(
-                          child: Container(
-                            height: 1,
-                            color: zc.border,
-                          ),
-                        ),
+                        Expanded(child: Container(height: 1, color: zc.border)),
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: zc.accent.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(5),
@@ -267,8 +291,10 @@ class _EconomicCalendarWidgetState
               if (selectedEvents.isEmpty && _selectedDay != null)
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 24,
+                    ),
                     child: Center(
                       child: Text(
                         'No events scheduled',
@@ -282,43 +308,40 @@ class _EconomicCalendarWidgetState
                 )
               else
                 SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (ctx, i) {
-                      // Guard against stale index after setState
-                      if (i >= selectedEvents.length) return null;
-                      return FadeTransition(
-                        opacity: CurvedAnimation(
-                          parent: _listAnim,
-                          curve: Interval(
-                            (i * 0.12).clamp(0.0, 0.7),
-                            1.0,
-                            curve: Curves.easeOutCubic,
-                          ),
+                  delegate: SliverChildBuilderDelegate((ctx, i) {
+                    // Guard against stale index after setState
+                    if (i >= selectedEvents.length) return null;
+                    return FadeTransition(
+                      opacity: CurvedAnimation(
+                        parent: _listAnim,
+                        curve: Interval(
+                          (i * 0.12).clamp(0.0, 0.7),
+                          1.0,
+                          curve: Curves.easeOutCubic,
                         ),
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.12),
-                            end: Offset.zero,
-                          ).animate(CurvedAnimation(
-                            parent: _listAnim,
-                            curve: Interval(
-                              (i * 0.12).clamp(0.0, 0.7),
-                              1.0,
-                              curve: Curves.easeOutCubic,
+                      ),
+                      child: SlideTransition(
+                        position:
+                            Tween<Offset>(
+                              begin: const Offset(0, 0.12),
+                              end: Offset.zero,
+                            ).animate(
+                              CurvedAnimation(
+                                parent: _listAnim,
+                                curve: Interval(
+                                  (i * 0.12).clamp(0.0, 0.7),
+                                  1.0,
+                                  curve: Curves.easeOutCubic,
+                                ),
+                              ),
                             ),
-                          )),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: _EventCard(
-                              event: selectedEvents[i],
-                              zc: zc,
-                            ),
-                          ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: _EventCard(event: selectedEvents[i], zc: zc),
                         ),
-                      );
-                    },
-                    childCount: selectedEvents.length,
-                  ),
+                      ),
+                    );
+                  }, childCount: selectedEvents.length),
                 ),
 
               SliverToBoxAdapter(
@@ -335,15 +358,27 @@ class _EconomicCalendarWidgetState
 
   static String _dayLabel(DateTime d) {
     final now = DateTime.now();
-    final diff = DateTime(d.year, d.month, d.day)
-        .difference(DateTime(now.year, now.month, now.day))
-        .inDays;
+    final diff = DateTime(
+      d.year,
+      d.month,
+      d.day,
+    ).difference(DateTime(now.year, now.month, now.day)).inDays;
     if (diff == 0) return 'TODAY';
     if (diff == 1) return 'TOMORROW';
     if (diff == -1) return 'YESTERDAY';
     final months = [
-      'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
-      'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'
+      'JAN',
+      'FEB',
+      'MAR',
+      'APR',
+      'MAY',
+      'JUN',
+      'JUL',
+      'AUG',
+      'SEP',
+      'OCT',
+      'NOV',
+      'DEC',
     ];
     final days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
     return '${days[(d.weekday - 1) % 7]}  ${d.day} ${months[d.month - 1]}';
@@ -477,7 +512,7 @@ class _FilterRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
         itemBuilder: (_, i) {
           final (filter, label) = filters[i];
           final active = selected == filter;
@@ -493,17 +528,14 @@ class _FilterRow extends StatelessWidget {
                     : zc.surfaceAlt,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: active
-                      ? zc.accent.withValues(alpha: 0.4)
-                      : zc.border,
+                  color: active ? zc.accent.withValues(alpha: 0.4) : zc.border,
                 ),
               ),
               child: Text(
                 label,
                 style: GoogleFonts.chakraPetch(
                   fontSize: 11,
-                  fontWeight:
-                      active ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                   color: active ? zc.accentSoft : zc.textMuted,
                 ),
               ),
@@ -531,8 +563,18 @@ class _MonthHeader extends StatelessWidget {
   });
 
   static const _months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
 
   @override
@@ -604,8 +646,11 @@ class _CalendarGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final firstDay = DateTime(focusedMonth.year, focusedMonth.month, 1);
-    final daysInMonth =
-        DateTime(focusedMonth.year, focusedMonth.month + 1, 0).day;
+    final daysInMonth = DateTime(
+      focusedMonth.year,
+      focusedMonth.month + 1,
+      0,
+    ).day;
     // Monday=1 → offset 0, Sunday=7 → offset 6
     final startOffset = (firstDay.weekday - 1) % 7;
     final today = DateTime.now();
@@ -625,19 +670,21 @@ class _CalendarGrid extends StatelessWidget {
         // Weekday headers
         Row(
           children: weekdays
-              .map((d) => Expanded(
-                    child: Center(
-                      child: Text(
-                        d,
-                        style: GoogleFonts.chakraPetch(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: zc.textDim,
-                          letterSpacing: 0.5,
-                        ),
+              .map(
+                (d) => Expanded(
+                  child: Center(
+                    child: Text(
+                      d,
+                      style: GoogleFonts.chakraPetch(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: zc.textDim,
+                        letterSpacing: 0.5,
                       ),
                     ),
-                  ))
+                  ),
+                ),
+              )
               .toList(),
         ),
         const SizedBox(height: 6),
@@ -654,16 +701,19 @@ class _CalendarGrid extends StatelessWidget {
           itemBuilder: (ctx, index) {
             if (index < startOffset) return const SizedBox();
             final day = index - startOffset + 1;
-            final date =
-                DateTime(focusedMonth.year, focusedMonth.month, day);
-            final isToday = date.year == today.year &&
+            final date = DateTime(focusedMonth.year, focusedMonth.month, day);
+            final isToday =
+                date.year == today.year &&
                 date.month == today.month &&
                 date.day == today.day;
-            final isSelected = selectedDay != null &&
+            final isSelected =
+                selectedDay != null &&
                 date.year == selectedDay!.year &&
                 date.month == selectedDay!.month &&
                 date.day == selectedDay!.day;
-            final isPast = date.isBefore(DateTime(today.year, today.month, today.day));
+            final isPast = date.isBefore(
+              DateTime(today.year, today.month, today.day),
+            );
             final dots = dotMap[day] ?? [];
             final hasHigh = dots.contains('high');
             final hasMed = dots.contains('medium');
@@ -679,15 +729,15 @@ class _CalendarGrid extends StatelessWidget {
                   color: isSelected
                       ? zc.accent.withValues(alpha: 0.18)
                       : isToday
-                          ? zc.accent.withValues(alpha: 0.08)
-                          : Colors.transparent,
+                      ? zc.accent.withValues(alpha: 0.08)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: isSelected
                         ? zc.accent.withValues(alpha: 0.5)
                         : isToday
-                            ? zc.accent.withValues(alpha: 0.3)
-                            : Colors.transparent,
+                        ? zc.accent.withValues(alpha: 0.3)
+                        : Colors.transparent,
                     width: isSelected ? 1.5 : 1,
                   ),
                 ),
@@ -704,22 +754,19 @@ class _CalendarGrid extends StatelessWidget {
                         color: isPast && !isToday && !isSelected
                             ? zc.textDim.withValues(alpha: 0.4)
                             : isSelected
-                                ? zc.accentSoft
-                                : isToday
-                                    ? zc.accent
-                                    : zc.textPrimary,
+                            ? zc.accentSoft
+                            : isToday
+                            ? zc.accent
+                            : zc.textPrimary,
                       ),
                     ),
-                    if (dots.isNotEmpty)
-                      const SizedBox(height: 2),
+                    if (dots.isNotEmpty) const SizedBox(height: 2),
                     if (dots.isNotEmpty)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          if (hasHigh)
-                            _Dot(color: const Color(0xFFEF4444)),
-                          if (hasMed)
-                            _Dot(color: const Color(0xFFFBBF24)),
+                          if (hasHigh) _Dot(color: const Color(0xFFEF4444)),
+                          if (hasMed) _Dot(color: const Color(0xFFFBBF24)),
                           if (hasLow && !hasHigh && !hasMed)
                             _Dot(color: const Color(0xFF3B82F6)),
                         ],
@@ -749,10 +796,7 @@ class _Dot extends StatelessWidget {
         color: color,
         shape: BoxShape.circle,
         boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.5),
-            blurRadius: 3,
-          ),
+          BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 3),
         ],
       ),
     );
@@ -771,8 +815,7 @@ class _EventCard extends StatefulWidget {
   State<_EventCard> createState() => _EventCardState();
 }
 
-class _EventCardState extends State<_EventCard>
-    with TickerProviderStateMixin {
+class _EventCardState extends State<_EventCard> with TickerProviderStateMixin {
   // Press animation
   late AnimationController _pressCtrl;
   late Animation<double> _scale;
@@ -802,9 +845,10 @@ class _EventCardState extends State<_EventCard>
       vsync: this,
       duration: const Duration(milliseconds: 110),
     );
-    _scale = Tween<double>(begin: 1.0, end: 0.97).animate(
-      CurvedAnimation(parent: _pressCtrl, curve: Curves.easeOut),
-    );
+    _scale = Tween<double>(
+      begin: 1.0,
+      end: 0.97,
+    ).animate(CurvedAnimation(parent: _pressCtrl, curve: Curves.easeOut));
 
     _expandCtrl = AnimationController(
       vsync: this,
@@ -825,9 +869,10 @@ class _EventCardState extends State<_EventCard>
       vsync: this,
       duration: const Duration(milliseconds: 1600),
     );
-    _glowAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _glowCtrl, curve: Curves.easeInOut),
-    );
+    _glowAnim = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _glowCtrl, curve: Curves.easeInOut));
     if (_isUpcomingToday(widget.event)) {
       _glowCtrl.repeat(reverse: true);
     }
@@ -864,9 +909,22 @@ class _EventCardState extends State<_EventCard>
     if (_summaryLoading || _summary != null) return;
     setState(() => _summaryLoading = true);
     final e = widget.event;
-    final months = ['Jan','Feb','Mar','Apr','May','Jun',
-                    'Jul','Aug','Sep','Oct','Nov','Dec'];
-    final dateLabel = '${months[e.time.month - 1]} ${e.time.day}, ${e.time.year}';
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final dateLabel =
+        '${months[e.time.month - 1]} ${e.time.day}, ${e.time.year}';
     final result = await CerebrasSentimentService().getEventNewsSummary(
       eventName: e.event,
       country: e.country,
@@ -921,8 +979,9 @@ class _EventCardState extends State<_EventCard>
                 boxShadow: isUpcomingToday
                     ? [
                         BoxShadow(
-                          color: impactColor
-                              .withValues(alpha: 0.12 + 0.22 * glow),
+                          color: impactColor.withValues(
+                            alpha: 0.12 + 0.22 * glow,
+                          ),
                           blurRadius: 6 + 14 * glow,
                           spreadRadius: 0.5 + 1.5 * glow,
                         ),
@@ -948,11 +1007,15 @@ class _EventCardState extends State<_EventCard>
                       color: isUpcomingToday && !_isExpanded
                           ? impactColor.withValues(alpha: 0.35 + 0.25 * glow)
                           : _isExpanded
-                              ? impactColor.withValues(alpha: 0.3)
-                              : isPast
-                                  ? zc.border
-                                  : impactColor.withValues(alpha: 0.18),
-                      width: isUpcomingToday ? 1.5 : _isExpanded ? 1.5 : 1,
+                          ? impactColor.withValues(alpha: 0.3)
+                          : isPast
+                          ? zc.border
+                          : impactColor.withValues(alpha: 0.18),
+                      width: isUpcomingToday
+                          ? 1.5
+                          : _isExpanded
+                          ? 1.5
+                          : 1,
                     ),
                   ),
                   child: child!,
@@ -962,226 +1025,243 @@ class _EventCardState extends State<_EventCard>
           );
         },
         child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Collapsed content (always visible) ───────────────
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top Row
-                    Row(
-                      children: [
-                        Text(
-                          '${e.flag} ',
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                        Expanded(
-                          child: Text(
-                            e.event,
-                            style: GoogleFonts.chakraPetch(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: zc.textPrimary,
-                              height: 1.3,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Impact badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: impactColor.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                                color: impactColor.withValues(alpha: 0.25)),
-                          ),
-                          child: Text(
-                            impactLabel,
-                            style: GoogleFonts.chakraPetch(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
-                              color: impactColor,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        // Expand chevron
-                        AnimatedRotation(
-                          turns: _isExpanded ? 0.5 : 0,
-                          duration: const Duration(milliseconds: 280),
-                          curve: Curves.easeOutCubic,
-                          child: Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 16,
-                            color: zc.textDim,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    // Data Row
-                    Row(
-                      children: [
-                        if (sessionLabel.isNotEmpty)
-                          _Tag(label: sessionLabel, color: zc.accent, zc: zc),
-                        if (sessionLabel.isNotEmpty) const SizedBox(width: 6),
-                        if (e.estimate != null)
-                          _DataChip(
-                            label: 'EST',
-                            value: '${e.estimate}${e.unit}',
-                            color: zc.accent,
-                            zc: zc,
-                          ),
-                        if (e.previous != null) ...[
-                          const SizedBox(width: 6),
-                          _DataChip(
-                            label: 'PRV',
-                            value: '${e.previous}${e.unit}',
-                            color: zc.textMuted,
-                            zc: zc,
-                          ),
-                        ],
-                        if (e.actual != null) ...[
-                          const SizedBox(width: 6),
-                          _DataChip(
-                            label: 'ACT',
-                            value: '${e.actual}${e.unit}',
-                            color: zc.green,
-                            zc: zc,
-                          ),
-                        ],
-                        const Spacer(),
-                        Text(
-                          _timeStr(e.time),
-                          style: GoogleFonts.chakraPetch(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: isPast ? zc.textDim : zc.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    // Inline AI impact (small, always shown when available)
-                    if (_aiLoading)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Row(children: [
-                          SizedBox(
-                            width: 9, height: 9,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 1.5, color: zc.accent),
-                          ),
-                          const SizedBox(width: 6),
-                          Text('AI analyzing...',
-                              style: GoogleFonts.chakraPetch(
-                                  fontSize: 10, color: zc.textDim)),
-                        ]),
-                      )
-                    else if (_aiAnalysis != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(Icons.auto_awesome_rounded,
-                                size: 10, color: impactColor),
-                            const SizedBox(width: 5),
-                            Expanded(
-                              child: Text(
-                                _aiAnalysis!,
-                                style: GoogleFonts.chakraPetch(
-                                  fontSize: 10,
-                                  color: impactColor.withValues(alpha: 0.8),
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    else if (e.impact.toLowerCase() != 'high')
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Collapsed content (always visible) ───────────────
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top Row
+                  Row(
+                    children: [
+                      Text('${e.flag} ', style: const TextStyle(fontSize: 16)),
+                      Expanded(
                         child: Text(
-                          'Tap to expand & analyze',
+                          e.event,
+                          style: GoogleFonts.chakraPetch(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: zc.textPrimary,
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Impact badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: impactColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: impactColor.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Text(
+                          impactLabel,
                           style: GoogleFonts.chakraPetch(
                             fontSize: 9,
-                            color: zc.textDim.withValues(alpha: 0.6),
+                            fontWeight: FontWeight.w700,
+                            color: impactColor,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
-                  ],
-                ),
-              ),
+                      const SizedBox(width: 6),
+                      // Expand chevron
+                      AnimatedRotation(
+                        turns: _isExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeOutCubic,
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 16,
+                          color: zc.textDim,
+                        ),
+                      ),
+                    ],
+                  ),
 
-              // ── Expanded panel ────────────────────────────────────
-              SizeTransition(
-                sizeFactor: _expandAnim,
-                axisAlignment: -1,
-                child: FadeTransition(
-                  opacity: _expandAnim,
-                  child: Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: impactColor.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: impactColor.withValues(alpha: 0.15)),
+                  const SizedBox(height: 8),
+
+                  // Data Row
+                  Row(
+                    children: [
+                      if (sessionLabel.isNotEmpty)
+                        _Tag(label: sessionLabel, color: zc.accent, zc: zc),
+                      if (sessionLabel.isNotEmpty) const SizedBox(width: 6),
+                      if (e.estimate != null)
+                        _DataChip(
+                          label: 'EST',
+                          value: '${e.estimate}${e.unit}',
+                          color: zc.accent,
+                          zc: zc,
+                        ),
+                      if (e.previous != null) ...[
+                        const SizedBox(width: 6),
+                        _DataChip(
+                          label: 'PRV',
+                          value: '${e.previous}${e.unit}',
+                          color: zc.textMuted,
+                          zc: zc,
+                        ),
+                      ],
+                      if (e.actual != null) ...[
+                        const SizedBox(width: 6),
+                        _DataChip(
+                          label: 'ACT',
+                          value: '${e.actual}${e.unit}',
+                          color: zc.green,
+                          zc: zc,
+                        ),
+                      ],
+                      const Spacer(),
+                      Text(
+                        _timeStr(e.time),
+                        style: GoogleFonts.chakraPetch(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isPast ? zc.textDim : zc.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Inline AI impact (small, always shown when available)
+                  if (_aiLoading)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 9,
+                            height: 9,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.5,
+                              color: zc.accent,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'AI analyzing...',
+                            style: GoogleFonts.chakraPetch(
+                              fontSize: 10,
+                              color: zc.textDim,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (_aiAnalysis != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 10,
+                            color: impactColor,
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: Text(
+                              _aiAnalysis!,
+                              style: GoogleFonts.chakraPetch(
+                                fontSize: 10,
+                                color: impactColor.withValues(alpha: 0.8),
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (e.impact.toLowerCase() != 'high')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        'Tap to expand & analyze',
+                        style: GoogleFonts.chakraPetch(
+                          fontSize: 9,
+                          color: zc.textDim.withValues(alpha: 0.6),
+                        ),
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Panel header
-                        Row(
-                          children: [
-                            Icon(
-                              isPast
-                                  ? Icons.history_edu_rounded
-                                  : Icons.remove_red_eye_rounded,
-                              size: 11,
+                ],
+              ),
+            ),
+
+            // ── Expanded panel ────────────────────────────────────
+            SizeTransition(
+              sizeFactor: _expandAnim,
+              axisAlignment: -1,
+              child: FadeTransition(
+                opacity: _expandAnim,
+                child: Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: impactColor.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: impactColor.withValues(alpha: 0.15),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Panel header
+                      Row(
+                        children: [
+                          Icon(
+                            isPast
+                                ? Icons.history_edu_rounded
+                                : Icons.remove_red_eye_rounded,
+                            size: 11,
+                            color: impactColor,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            isPast ? 'WHAT HAPPENED' : 'WHAT TO WATCH',
+                            style: GoogleFonts.chakraPetch(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
                               color: impactColor,
                             ),
-                            const SizedBox(width: 5),
-                            Text(
-                              isPast ? 'WHAT HAPPENED' : 'WHAT TO WATCH',
-                              style: GoogleFonts.chakraPetch(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
+                          ),
+                          const Spacer(),
+                          Text(
+                            'AI Summary',
+                            style: GoogleFonts.chakraPetch(
+                              fontSize: 8,
+                              color: impactColor.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Summary content
+                      if (_summaryLoading)
+                        Row(
+                          children: [
+                            SizedBox(
+                              width: 11,
+                              height: 11,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
                                 color: impactColor,
                               ),
-                            ),
-                            const Spacer(),
-                            Text(
-                              'AI Summary',
-                              style: GoogleFonts.chakraPetch(
-                                fontSize: 8,
-                                color: impactColor.withValues(alpha: 0.5),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Summary content
-                        if (_summaryLoading)
-                          Row(children: [
-                            SizedBox(
-                              width: 11, height: 11,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2, color: impactColor),
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -1193,32 +1273,33 @@ class _EventCardState extends State<_EventCard>
                                 color: zc.textDim,
                               ),
                             ),
-                          ])
-                        else if (_summary != null)
-                          Text(
-                            _summary!,
-                            style: GoogleFonts.chakraPetch(
-                              fontSize: 11,
-                              color: zc.textPrimary,
-                              height: 1.55,
-                            ),
-                          )
-                        else
-                          Text(
-                            'No summary available',
-                            style: GoogleFonts.chakraPetch(
-                              fontSize: 11,
-                              color: zc.textDim,
-                            ),
+                          ],
+                        )
+                      else if (_summary != null)
+                        Text(
+                          _summary!,
+                          style: GoogleFonts.chakraPetch(
+                            fontSize: 11,
+                            color: zc.textPrimary,
+                            height: 1.55,
                           ),
-                      ],
-                    ),
+                        )
+                      else
+                        Text(
+                          'No summary available',
+                          style: GoogleFonts.chakraPetch(
+                            fontSize: 11,
+                            color: zc.textDim,
+                          ),
+                        ),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
     );
   }
 
@@ -1354,10 +1435,7 @@ class _CalendarSkeleton extends StatelessWidget {
             border: Border.all(color: zc.border),
           ),
           child: Center(
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: zc.accent,
-            ),
+            child: CircularProgressIndicator(strokeWidth: 2, color: zc.accent),
           ),
         ),
       ],
@@ -1386,8 +1464,7 @@ class _CalendarError extends StatelessWidget {
           GestureDetector(
             onTap: onRetry,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               decoration: BoxDecoration(
                 color: zc.accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),

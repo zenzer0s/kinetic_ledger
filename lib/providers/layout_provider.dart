@@ -16,6 +16,7 @@ class ResultLayoutNotifier extends Notifier<ResultLayoutType> {
   }
 }
 
-final resultLayoutProvider = NotifierProvider<ResultLayoutNotifier, ResultLayoutType>(
-  ResultLayoutNotifier.new,
-);
+final resultLayoutProvider =
+    NotifierProvider<ResultLayoutNotifier, ResultLayoutType>(
+      ResultLayoutNotifier.new,
+    );

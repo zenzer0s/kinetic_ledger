@@ -33,7 +33,8 @@ class RateNotifier extends AsyncNotifier<RatesResult> {
   Future<void> refresh() async {
     state = const AsyncValue.loading();
     final result = await AsyncValue.guard(
-        () => ref.read(rateServiceProvider).fetchRates());
+      () => ref.read(rateServiceProvider).fetchRates(),
+    );
     state = result;
     if (result.hasValue) {
       await WidgetService.updateWidget(rates: result.value!);
@@ -41,8 +42,9 @@ class RateNotifier extends AsyncNotifier<RatesResult> {
   }
 }
 
-final rateProvider =
-    AsyncNotifierProvider<RateNotifier, RatesResult>(RateNotifier.new);
+final rateProvider = AsyncNotifierProvider<RateNotifier, RatesResult>(
+  RateNotifier.new,
+);
 
 // ── Yesterday rates provider (for per-pair % change) ─────────────────────────
 final yesterdayRatesProvider = FutureProvider<Map<String, double>>((ref) async {
@@ -58,8 +60,10 @@ final yesterdayRatesProvider = FutureProvider<Map<String, double>>((ref) async {
 });
 
 // ── Sparkline provider (family — keyed by "FROM_TO") ──────────────────────────
-final sparklineProvider =
-    FutureProvider.family<SparklineResult, String>((ref, pair) async {
+final sparklineProvider = FutureProvider.family<SparklineResult, String>((
+  ref,
+  pair,
+) async {
   final parts = pair.split('_');
   final from = parts[0];
   final to = parts[1];
