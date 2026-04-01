@@ -8,6 +8,7 @@ import 'theme/app_theme.dart';
 import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/percentage_screen.dart';
+import 'screens/news_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,6 +60,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
   final List<Widget> _screens = [
     const ConverterScreen(),
     const PercentageScreen(),
+    const NewsScreen(),
   ];
 
   @override
@@ -93,11 +95,15 @@ class _MainScaffoldState extends ConsumerState<MainScaffold> {
                     // ── Nav items ──────────────────────────────────────────
                     Expanded(
                       child: _buildNavItem(
-                        0, Icons.currency_exchange_rounded, 'CONVERTER', zc),
+                        0, Icons.currency_exchange_rounded, 'CONVERT', zc),
                     ),
                     Expanded(
                       child: _buildNavItem(
-                        1, Icons.calculate_rounded, 'CALCULATOR', zc),
+                        1, Icons.calculate_rounded, 'CALC', zc),
+                    ),
+                    Expanded(
+                      child: _buildNavItem(
+                        2, Icons.newspaper_rounded, 'PULSE', zc),
                     ),
 
                     // ── Theme Toggle ───────────────────────────────────────

@@ -271,7 +271,7 @@ class _ConverterScreenState extends ConsumerState<ConverterScreen>
                                   loading: () => CustomPaint(
                                     painter: _SparklinePlaceholder(zc.accent),
                                   ),
-                                  error: (_, __) => CustomPaint(
+                                  error: (_, _) => CustomPaint(
                                     painter: _SparklinePlaceholder(zc.accent),
                                   ),
                                 ),
