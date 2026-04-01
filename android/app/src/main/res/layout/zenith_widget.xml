@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/widget_background"
+    android:gravity="center_vertical">
+
+    <!-- Header row: pair label + live dot -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_flag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="USD -> INR"
+            android:textColor="#59E8EAF6"
+            android:textSize="10sp"
+            android:layout_marginEnd="6dp" />
+
+        <TextView
+            android:id="@+id/widget_pair_label"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text=""
+            android:textColor="#00FFFFFF"
+            android:textSize="1sp" />
+
+        <!-- Live indicator dot -->
+        <View
+            android:id="@+id/widget_live_dot"
+            android:layout_width="6dp"
+            android:layout_height="6dp"
+            android:background="@drawable/live_dot"
+            android:layout_marginEnd="5dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="LIVE"
+            android:textColor="#334ADE80"
+            android:textSize="8sp"
+            android:letterSpacing="0.15" />
+
+    </LinearLayout>
+
+    <!-- Big rate display -->
+    <TextView
+        android:id="@+id/widget_rate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="—"
+        android:textColor="#C8C4FF"
+        android:textSize="42sp"
+        android:textStyle="bold"
+        android:letterSpacing="-0.03"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="2dp" />
+
+    <!-- 1 USD = ₹xx.xx -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/widget_sub_label"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Tap to load"
+            android:textColor="#59E8EAF6"
+            android:textSize="11sp" />
+
+        <!-- Change badge -->
+        <TextView
+            android:id="@+id/widget_change"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="+0.00%"
+            android:textColor="#4ADE80"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingTop="3dp"
+            android:paddingBottom="3dp"
+            android:background="@drawable/badge_green" />
+
+    </LinearLayout>
+
+    <!-- Updated time -->
+    <TextView
+        android:id="@+id/widget_updated"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="not updated yet"
+        android:textColor="#26E8EAF6"
+        android:textSize="9sp"
+        android:letterSpacing="0.08"
+        android:layout_marginTop="8dp" />
+
+</LinearLayout>

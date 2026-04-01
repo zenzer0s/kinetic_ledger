@@ -6,32 +6,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../providers/rate_provider.dart';
+import '../theme/app_theme.dart';
 import '../utils/parser.dart';
-
-// ── COLOR CONSTANTS (Matching Home Screen) ──────────────────────────────────────
-const Color kBg = Color(0xFF0A0B10);
-const Color kSurface = Color(0xFF10121A);
-const Color kAccent = Color(0xFF6C63FF);
-const Color kTextPrimary = Color(0xFFE8EAF6);
-final Color kTextMuted = const Color(0xFFE8EAF6).withValues(alpha: 0.45);
-final Color kTextDim = const Color(0xFFE8EAF6).withValues(alpha: 0.25);
-const Color kGreen = Color(0xFF4ADE80);
 
 class PercentageScreen extends ConsumerStatefulWidget {
   const PercentageScreen({super.key});
-
   @override
   ConsumerState<PercentageScreen> createState() => _PercentageScreenState();
 }
 
 class _PercentageScreenState extends ConsumerState<PercentageScreen>
     with WidgetsBindingObserver {
-  final TextEditingController _amountController = TextEditingController(
-    text: '',
-  );
-  final TextEditingController _percentController = TextEditingController(
-    text: '',
-  );
+  final TextEditingController _amountController = TextEditingController(text: '');
+  final TextEditingController _percentController = TextEditingController(text: '');
 
   Timer? _debounce;
   bool _wasKeyboardOpen = false;
@@ -60,10 +47,10 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
 
   @override
   void didChangeMetrics() {
-    final double keyboardHeight = View.of(context).viewInsets.bottom;
-    if (keyboardHeight > 0) {
+    final double kbHeight = View.of(context).viewInsets.bottom;
+    if (kbHeight > 0) {
       _wasKeyboardOpen = true;
-    } else if (keyboardHeight == 0 && _wasKeyboardOpen) {
+    } else if (kbHeight == 0 && _wasKeyboardOpen) {
       _wasKeyboardOpen = false;
       if (mounted && FocusScope.of(context).hasFocus) {
         FocusScope.of(context).unfocus();
@@ -73,10 +60,8 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
 
   void _onInputChanged(String val) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce = Timer(
-      const Duration(milliseconds: 300),
-      () => _recalculate(),
-    );
+    _debounce =
+        Timer(const Duration(milliseconds: 300), () => _recalculate());
     setState(() {});
   }
 
@@ -84,12 +69,12 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
     final amountResult = AmountParser.parseAmount(_amountController.text);
     final amount = amountResult['amount'] as double;
     final percent = double.tryParse(_percentController.text) ?? 0.0;
-
     final calcValue = (amount * percent) / 100.0;
 
     final rateAsync = ref.read(rateProvider);
     double converted = 0.0;
     if (rateAsync.hasValue) {
+      // .rate is backwards-compat: returns the USD→INR cross rate
       converted = calcValue * rateAsync.value!.rate;
     }
 
@@ -103,8 +88,9 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
 
   @override
   Widget build(BuildContext context) {
-    ref.watch(rateProvider);
+    final zc = context.zc;
 
+    ref.watch(rateProvider);
     ref.listen(rateProvider, (p, n) {
       if (n.hasValue) _recalculate();
     });
@@ -114,14 +100,12 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
     return PopScope(
       canPop: true,
       onPopInvokedWithResult: (didPop, result) {
-        if (FocusScope.of(context).hasFocus) {
-          FocusScope.of(context).unfocus();
-        }
+        if (FocusScope.of(context).hasFocus) FocusScope.of(context).unfocus();
       },
       child: GestureDetector(
         onTap: () => FocusScope.of(context).unfocus(),
         child: Scaffold(
-          backgroundColor: kBg,
+          backgroundColor: zc.bg,
           body: SafeArea(
             bottom: false,
             child: CustomScrollView(
@@ -133,7 +117,7 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
                     children: [
                       const SizedBox(height: 48),
 
-                      // ── TOP SECTION (CALCULATED VALUE) ─────────────────────
+                      // ── TOP RESULT ─────────────────────────────────────
                       _FadeInUp(
                         delay: 150,
                         child: Padding(
@@ -147,13 +131,12 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 1.5,
-                                  color: kTextDim,
+                                  color: zc.textDim,
                                 ),
                               ),
                               const SizedBox(height: 14),
                               Row(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.baseline,
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
                                 textBaseline: TextBaseline.alphabetic,
                                 children: [
                                   Text(
@@ -161,7 +144,7 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
                                     style: GoogleFonts.chakraPetch(
                                       fontSize: 48,
                                       fontWeight: FontWeight.w700,
-                                      color: kTextPrimary.withValues(alpha: 0.9),
+                                      color: zc.textPrimary.withValues(alpha: 0.9),
                                       height: 1.0,
                                     ),
                                   ),
@@ -170,23 +153,20 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
                                     key: ValueKey(_calculatedAmount),
                                     tween: Tween<double>(
                                         begin: 0, end: _calculatedAmount),
-                                    duration:
-                                        const Duration(milliseconds: 500),
+                                    duration: const Duration(milliseconds: 500),
                                     curve: Curves.easeOutCubic,
                                     builder: (context, value, child) {
-                                      // Sync Haptics
-                                      final int currentVal = value.floor();
-                                      if (currentVal != _lastHapticValue) {
-                                        _lastHapticValue = currentVal;
+                                      final int cur = value.floor();
+                                      if (cur != _lastHapticValue) {
+                                        _lastHapticValue = cur;
                                         HapticFeedback.selectionClick();
                                       }
-
                                       return Text(
                                         AmountParser.formatUSD(value),
                                         style: GoogleFonts.chakraPetch(
                                           fontSize: 76,
                                           fontWeight: FontWeight.w800,
-                                          color: const Color(0xFFC8C4FF),
+                                          color: zc.accentSoft,
                                           letterSpacing: -1.0,
                                           height: 1.0,
                                         ),
@@ -196,37 +176,32 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
                                 ],
                               ),
                               const SizedBox(height: 20),
-                              
-                              // Equivalent in INR (Smaller display)
                               Text(
                                 'ESTIMATED ₹${AmountParser.formatINR(_convertedValue)}',
                                 style: GoogleFonts.chakraPetch(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
-                                  color: kAccent,
+                                  color: zc.accent,
                                   letterSpacing: 0.0,
                                 ),
                               ),
-                              
                               const SizedBox(height: 32),
                               SizedBox(
                                 height: 44,
                                 width: double.infinity,
                                 child: CustomPaint(
-                                  painter: _SparklinePainter(),
+                                  painter: _SparklinePainter(zc.accent),
                                 ),
                               ),
                               const SizedBox(height: 24),
-                              
-                              // Summary Pill
+                              // Summary pill
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 18, vertical: 16),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.03),
+                                  color: zc.surface,
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(
-                                      color: Colors.white.withValues(alpha: 0.06)),
+                                  border: Border.all(color: zc.border),
                                 ),
                                 child: Row(
                                   children: [
@@ -235,7 +210,7 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
                                       style: GoogleFonts.chakraPetch(
                                         fontSize: 20,
                                         fontWeight: FontWeight.w800,
-                                        color: kAccent,
+                                        color: zc.accent,
                                       ),
                                     ),
                                     const SizedBox(width: 12),
@@ -244,7 +219,7 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
                                       style: GoogleFonts.chakraPetch(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w700,
-                                        color: kTextPrimary,
+                                        color: zc.textPrimary,
                                       ),
                                     ),
                                   ],
@@ -254,10 +229,10 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 48),
 
-                      // ── BOTTOM INPUT SECTION ────────────────────────────
+                      // ── INPUTS ─────────────────────────────────────────
                       _FadeInUp(
                         delay: 250,
                         child: Column(
@@ -270,32 +245,28 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   letterSpacing: 1.5,
-                                  color: kTextDim,
+                                  color: zc.textDim,
                                 ),
                               ),
                             ),
                             const SizedBox(height: 16),
-                            
-                            // Amount Card
                             _InputCard(
                               label: 'PRINCIPAL AMOUNT',
                               controller: _amountController,
                               prefix: '\$',
                               suffix: 'USD',
                               onChanged: _onInputChanged,
+                              zc: zc,
                             ),
-                            
                             const SizedBox(height: 16),
-                            
-                            // Percent Card
                             _InputCard(
                               label: 'PERCENTAGE RATE',
                               controller: _percentController,
                               prefix: '',
                               suffix: '%',
                               onChanged: _onInputChanged,
+                              zc: zc,
                             ),
-                            
                             SizedBox(height: safeBottomPadding + 140),
                           ],
                         ),
@@ -312,16 +283,14 @@ class _PercentageScreenState extends ConsumerState<PercentageScreen>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Components
-// ─────────────────────────────────────────────────────────────────────────────
-
+// ── Input Card ────────────────────────────────────────────────────────────────
 class _InputCard extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final String prefix;
   final String suffix;
   final Function(String) onChanged;
+  final ZenithColors zc;
 
   const _InputCard({
     required this.label,
@@ -329,6 +298,7 @@ class _InputCard extends StatelessWidget {
     required this.prefix,
     required this.suffix,
     required this.onChanged,
+    required this.zc,
   });
 
   @override
@@ -338,12 +308,9 @@ class _InputCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 24),
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F111A),
+        color: zc.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-          width: 1,
-        ),
+        border: Border.all(color: zc.border, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -354,7 +321,7 @@ class _InputCard extends StatelessWidget {
               fontSize: 10,
               fontWeight: FontWeight.w600,
               letterSpacing: 1.5,
-              color: const Color(0xFFE8EAF6).withValues(alpha: 0.25),
+              color: zc.textDim,
             ),
           ),
           const SizedBox(height: 12),
@@ -362,26 +329,27 @@ class _InputCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              if (prefix.isNotEmpty)
+              if (prefix.isNotEmpty) ...[
                 Text(
                   prefix,
                   style: GoogleFonts.chakraPetch(
                     fontSize: 24,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFFE8EAF6).withValues(alpha: 0.45),
+                    color: zc.textMuted,
                   ),
                 ),
-              if (prefix.isNotEmpty) const SizedBox(width: 8),
+                const SizedBox(width: 8),
+              ],
               Expanded(
                 child: TextField(
                   controller: controller,
                   onChanged: onChanged,
-                  cursorColor: const Color(0xFF6C63FF),
+                  cursorColor: zc.accent,
                   keyboardType: TextInputType.text,
                   style: GoogleFonts.chakraPetch(
                     fontSize: 48,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: zc.textPrimary,
                     letterSpacing: -1.5,
                     height: 1.1,
                   ),
@@ -401,7 +369,7 @@ class _InputCard extends StatelessWidget {
                 style: GoogleFonts.chakraPetch(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF6C63FF),
+                  color: zc.accent,
                 ),
               ),
             ],
@@ -412,13 +380,16 @@ class _InputCard extends StatelessWidget {
   }
 }
 
+// ── Sparkline ─────────────────────────────────────────────────────────────────
 class _SparklinePainter extends CustomPainter {
+  final Color accent;
+  const _SparklinePainter(this.accent);
+
   @override
   void paint(Canvas canvas, Size size) {
     final path = Path();
     double sx = size.width / 320.0;
     double sy = size.height / 40.0;
-
     path.moveTo(0 * sx, 30 * sy);
     path.cubicTo(20 * sx, 28 * sy, 35 * sx, 32 * sy, 55 * sx, 25 * sy);
     path.cubicTo(75 * sx, 18 * sy, 90 * sx, 22 * sy, 110 * sx, 18 * sy);
@@ -427,42 +398,46 @@ class _SparklinePainter extends CustomPainter {
     path.cubicTo(240 * sx, 10 * sy, 255 * sx, 15 * sy, 275 * sx, 10 * sy);
     path.cubicTo(290 * sx, 6 * sy, 305 * sx, 8 * sy, 320 * sx, 5 * sy);
 
-    final fillPath = Path.from(path);
-    fillPath.lineTo(320 * sx, 40 * sy);
-    fillPath.lineTo(0 * sx, 40 * sy);
-    fillPath.close();
+    final fillPath = Path.from(path)
+      ..lineTo(320 * sx, 40 * sy)
+      ..lineTo(0 * sx, 40 * sy)
+      ..close();
 
-    final paintFill = Paint()
-      ..shader = ui.Gradient.linear(
-        const Offset(0, 0),
-        Offset(0, size.height),
-        [const Color(0xFF6C63FF).withValues(alpha: 0.35), const Color(0xFF6C63FF).withValues(alpha: 0.0)],
-        [0.0, 1.0],
-      )
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(fillPath, paintFill);
+    canvas.drawPath(
+      fillPath,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          const Offset(0, 0),
+          Offset(0, size.height),
+          [accent.withValues(alpha: 0.35), accent.withValues(alpha: 0.0)],
+        )
+        ..style = PaintingStyle.fill,
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = ui.Gradient.linear(
+          const Offset(0, 0),
+          Offset(size.width, 0),
+          [accent.withValues(alpha: 0.3), accent, const Color(0xFFA5B4FC)],
+          [0.0, 0.7, 1.0],
+        )
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0
+        ..strokeCap = StrokeCap.round,
+    );
 
-    final paintLine = Paint()
-      ..shader = ui.Gradient.linear(
-        const Offset(0, 0),
-        Offset(size.width, 0),
-        [const Color(0xFF6C63FF).withValues(alpha: 0.3), const Color(0xFF6C63FF), const Color(0xFFA5B4FC)],
-        [0.0, 0.7, 1.0],
-      )
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, paintLine);
-
-    final outerDot = Paint()..color = const Color(0xFF6C63FF).withValues(alpha: 0.25);
+    final outerDot = Paint()..color = accent.withValues(alpha: 0.25);
     canvas.drawCircle(Offset(320 * sx, 5 * sy), 8, outerDot);
     final innerDot = Paint()..color = const Color(0xFFA5B4FC);
     canvas.drawCircle(Offset(320 * sx, 5 * sy), 3.5, innerDot);
   }
+
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _SparklinePainter old) => old.accent != accent;
 }
 
+// ── Fade In Up ────────────────────────────────────────────────────────────────
 class _FadeInUp extends StatefulWidget {
   final Widget child;
   final int delay;
@@ -482,8 +457,8 @@ class _FadeInUpState extends State<_FadeInUp>
     super.initState();
     _ctrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 500));
-    _opacity = Tween<double>(begin: 0.0, end: 1.0).animate(
-        CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+    _opacity = Tween<double>(begin: 0.0, end: 1.0)
+        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _offset = Tween<Offset>(begin: const Offset(0, 0.15), end: Offset.zero)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     Future.delayed(Duration(milliseconds: widget.delay), () {
